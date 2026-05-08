@@ -1,0 +1,97 @@
+[
+  {
+    "query_id": "q1",
+    "name": "Simple Predicate Pushdown",
+    "sql": "SELECT * FROM (SELECT o_orderkey, o_custkey, o_orderstatus FROM orders) AS sub WHERE o_orderstatus = 'O';",
+    "target_rules": [
+      "predicate_pushdown"
+    ],
+    "expected_optimization": "The predicate 'o_orderstatus = \\'O\\'' should be pushed down into the subquery."
+  },
+  {
+    "query_id": "q2",
+    "name": "Predicate Pushdown on Lineitem",
+    "sql": "SELECT l_orderkey FROM (SELECT l_orderkey, l_extendedprice, l_discount FROM lineitem) AS sub WHERE l_discount > 0.05 AND l_extendedprice < 1000;",
+    "target_rules": [
+      "predicate_pushdown"
+    ],
+    "expected_optimization": "Push both 'l_discount > 0.05' and 'l_extendedprice < 1000' down into the subquery to filter rows earlier."
+  },
+  {
+    "query_id": "q3",
+    "name": "Projection Pruning on Customer",
+    "sql": "SELECT c_custkey, c_name FROM (SELECT c_custkey, c_name, c_address, c_phone, c_acctbal FROM customer) AS sub;",
+    "target_rules": [
+      "projection_pruning"
+    ],
+    "expected_optimization": "Remove c_address, c_phone, and c_acctbal from the inner subquery since they are not used in the outer SELECT."
+  },
+  {
+    "query_id": "q4",
+    "name": "Projection Pruning on Part",
+    "sql": "SELECT p_partkey FROM (SELECT * FROM part) AS sub;",
+    "target_rules": [
+      "projection_pruning"
+    ],
+    "expected_optimization": "Warn about SELECT * or safely prune everything except p_partkey in the inner query."
+  },
+  {
+    "query_id": "q5",
+    "name": "Subquery Unnesting IN Clause",
+    "sql": "SELECT * FROM customer WHERE c_custkey IN (SELECT o_custkey FROM orders);",
+    "target_rules": [
+      "subquery_unnesting"
+    ],
+    "expected_optimization": "Unnest the IN subquery to a JOIN: SELECT customer.* FROM customer JOIN orders ON customer.c_custkey = orders.o_custkey;"
+  },
+  {
+    "query_id": "q6",
+    "name": "Subquery Unnesting on Supplier",
+    "sql": "SELECT * FROM supplier WHERE s_nationkey IN (SELECT n_nationkey FROM nation);",
+    "target_rules": [
+      "subquery_unnesting"
+    ],
+    "expected_optimization": "Unnest the IN subquery to a JOIN between supplier and nation on nationkey."
+  },
+  {
+    "query_id": "q7",
+    "name": "Predicate Pushdown + Projection Pruning",
+    "sql": "SELECT o_orderdate FROM (SELECT o_orderkey, o_custkey, o_orderstatus, o_orderdate FROM orders) AS sub WHERE o_orderstatus = 'F';",
+    "target_rules": [
+      "predicate_pushdown",
+      "projection_pruning"
+    ],
+    "expected_optimization": "Push down 'o_orderstatus = \\'F\\'' and prune o_orderkey and o_custkey from the inner query."
+  },
+  {
+    "query_id": "q8",
+    "name": "Subquery Unnesting + Predicate Pushdown",
+    "sql": "SELECT * FROM (SELECT * FROM nation) AS n WHERE n_regionkey IN (SELECT r_regionkey FROM region WHERE r_name = 'ASIA');",
+    "target_rules": [
+      "subquery_unnesting",
+      "predicate_pushdown"
+    ],
+    "expected_optimization": "Push down 'r_name = \\'ASIA\\'' and unnest the IN clause into a JOIN between nation and region."
+  },
+  {
+    "query_id": "q9",
+    "name": "Projection Pruning + Subquery Unnesting",
+    "sql": "SELECT p_name FROM (SELECT p_partkey, p_name, p_mfgr FROM part) AS p WHERE p_partkey IN (SELECT l_partkey FROM lineitem);",
+    "target_rules": [
+      "projection_pruning",
+      "subquery_unnesting"
+    ],
+    "expected_optimization": "Prune p_mfgr from the inner query and unnest the IN clause to a JOIN."
+  },
+  {
+    "query_id": "q10",
+    "name": "Complex TPC-H Query Simulation",
+    "sql": "SELECT c_name FROM (SELECT c_custkey, c_name, c_nationkey FROM customer) AS c WHERE c_custkey IN (SELECT o_custkey FROM orders WHERE o_orderdate >= '1995-01-01');",
+    "target_rules": [
+      "predicate_pushdown",
+      "projection_pruning",
+      "subquery_unnesting"
+    ],
+    "expected_optimization": "Push down date filter, prune c_nationkey, and rewrite IN clause to JOIN."
+  }
+]
