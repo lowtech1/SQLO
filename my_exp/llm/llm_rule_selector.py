@@ -17,6 +17,7 @@ except ImportError:
     pass
 
 try:
+    # pyrefly: ignore [missing-import]
     from groq import Groq
 except ImportError:
     pass

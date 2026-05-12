@@ -2,16 +2,15 @@
 # @AUTHOR : LZDH
 import pandas as pd
 import re
+# pyrefly: ignore [missing-import]
 import openai
 import time
-
 from encoder import *
-
+# pyrefly: ignore [missing-import]
 from openai import OpenAI
 # import tiktoken
 client = OpenAI(
-    # This is the default and can be omitted
-    api_key="your_api_key"
+    api_key=os.getenv("OPENAI_API_KEY")
 )
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
