@@ -39,13 +39,22 @@ def call_rewriter(db_id, sql_input, rule_input):
     input_list = [db_id, sql_input, rule_input]
     # Convert the input list to a JSON string
     input_string = json.dumps(input_list)
-    command = 'java -cp rewriter_java.jar src/rule_rewriter.java'
+    command = 'java -cp "rewriter_java.jar;compiled_rewriter" rule_rewriter'
 
     process = subprocess.Popen(command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, text=True)
     # process.stdin.write(.encode())
     # Wait for the subprocess to finish and capture the output
-    output, error = process.communicate(input=input_string)
+    # Timeout 60s de tranh treo vo han
+    try:
+        output, error = process.communicate(input=input_string, timeout=60)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, error = process.communicate()
+        print(f"WARNING: Rewriter timeout (>60s) for query: {sql_input[:80]}...")
+        with open('rewriter_timeout.log', 'a') as f:
+            f.write(f"TIMEOUT: {sql_input}\nRules: {rule_input}\n\n")
+        return 'NA'
 
     # Print the output and error messages
     # print("Output:\n", output)
@@ -106,6 +115,6 @@ def call_rewriter(db_id, sql_input, rule_input):
 #             left_subtree = create_nested_tree(heights[left_root:], nodes[left_root:])
 #             return [root, left_subtree]
 
-
-print(call_rewriter(db_id, sql_input, rule_input))
+# Da disabled test nay vi no chay khi import module
+# print(call_rewriter(db_id, sql_input, rule_input))
 

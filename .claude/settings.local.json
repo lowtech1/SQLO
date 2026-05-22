@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 300 ..\\\\.venv\\\\Scripts\\\\python.exe -X utf8 LLM_R2_Claude.py)"
+    ]
+  }
+}

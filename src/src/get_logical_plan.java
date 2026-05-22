@@ -19,17 +19,19 @@ import java.util.Scanner;
 public class get_logical_plan {
     public static void main(String[] args) throws Exception{
         String path = System.getProperty("user.dir");
-        String[] levels = path.split("/");
-        // Use StringBuilder to rebuild the path without the last level
+        // Sua loi: split "/" khong hoat dong tren Windows (path chua "\")
+        String normalized = path.replace("\\", "/");
+        String[] levels = normalized.split("/");
+        // Loai bo 1 cap thu muc cuoi (src) -> len 2 cap de den project root
         StringBuilder modifiedPath = new StringBuilder();
         for(int i = 0; i < levels.length - 1; i++) {
             modifiedPath.append(levels[i]);
-            // Add "/" between the levels but not at the end
             if(i < levels.length - 2) {
                 modifiedPath.append("/");
             }
         }
         String newpath = modifiedPath.toString();
+        if(newpath.isEmpty()) newpath = path;
         Scanner scanner = new Scanner(System.in);
         String inputs = scanner.nextLine();
         Gson gson = new Gson();

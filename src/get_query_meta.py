@@ -85,11 +85,16 @@ def get_logical_plan(db_id, sql_input):
     input_list = [db_id, sql_input]
     # Convert the input list to a JSON string
     input_string = json.dumps(input_list)
-    command = 'java -cp rewriter_java.jar src/get_logical_plan.java'
+    command = 'java -cp "rewriter_java.jar;compiled_rewriter" get_logical_plan'
 
     process = subprocess.Popen(command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, text=True)
-    output, error = process.communicate(input=input_string)
+    try:
+        output, error = process.communicate(input=input_string, timeout=30)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, error = process.communicate()
+        return []
 
     # Print the output and error messages
     # print("Output:\n", output)
@@ -125,11 +130,16 @@ def get_physical_tree(db_id, sql_input, row_only=False):
     input_list = [db_id, sql_input]
     # Convert the input list to a JSON string
     input_string = json.dumps(input_list)
-    command = 'java -cp rewriter_java.jar src/get_physical_tree.java'
+    command = 'java -cp "rewriter_java.jar;compiled_rewriter" get_physical_tree'
 
     process = subprocess.Popen(command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, text=True)
-    output, error = process.communicate(input=input_string)
+    try:
+        output, error = process.communicate(input=input_string, timeout=30)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, error = process.communicate()
+        return []
 
     # Print the output and error messages
     # print("Output:\n", output)

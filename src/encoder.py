@@ -69,6 +69,8 @@ def extractNode(node):
 
 
 def traversePlan(root, level=0):
+    if root is None or (isinstance(root, list) and len(root) == 0):
+        return None
     if isinstance(root, list):
         root_dict = root[0]
         root_node = TreeNode(extractNode(root_dict))
@@ -76,8 +78,9 @@ def traversePlan(root, level=0):
         if len(root) > 1:
             for child in root[1:]:
                 node = traversePlan(child, level + 1)
-                node.parent = root_node
-                root_node.children.append(node)
+                if node is not None:
+                    node.parent = root_node
+                    root_node.children.append(node)
     else:
         root_dict = root
         root_node = TreeNode(extractNode(root_dict))
@@ -180,7 +183,11 @@ class QueryFormerPreprocess:
         self.rel_pos_max = rel_pos_max
         # self.nodes = nodes
         # self.collated_dicts = [self.pre_collate(self.node2dict(node)) for node in nodes]
-        self.output = self.pre_collate(self.node2dict(input_node))
+        if input_node is None:
+            # Tra ve cay rong khi input_node = None
+            self.output = self.pre_collate(self.node2dict(None))
+        else:
+            self.output = self.pre_collate(self.node2dict(input_node))
 
     def __getitem__(self):
         return self.output
@@ -218,6 +225,12 @@ class QueryFormerPreprocess:
         }
 
     def node2dict(self, node):
+        if node is None:
+            return {
+                'features': torch.zeros([1, 408]),  # 21 + 384 + 3 = 408
+                'heights': torch.LongTensor([0]),
+                'adjacency_list': torch.LongTensor([]).reshape(0, 2),
+            }
         adj_list, num_child, features = self.topo_sort(node)
         heights = self.calculate_height(adj_list, len(features))
         return {
@@ -316,8 +329,21 @@ def prepare_enc_data(query_dataset, model, db_ids):
     processed_dataset = []
     for i in range(len(query_dataset)):
         db_id = db_ids[i]
-        nodes = [traversePlan(get_physical_tree(db_id, sql_input)) for sql_input in query_dataset[i]]
-        processed_dataset.append([QueryFormerPreprocess(node, model).__getitem__() for node in nodes])
+        nodes = []
+        for sql_input in query_dataset[i]:
+            try:
+                tree = get_physical_tree(db_id, sql_input)
+                if tree is None or (isinstance(tree, list) and len(tree) == 0):
+                    # Tra ve cay rong khi Java rewriter that bai
+                    node = None
+                else:
+                    node = traversePlan(tree)
+                nodes.append(node)
+            except Exception as e:
+                # Skip neu co loi, tra ve None
+                print(f"[WARN] prepare_enc_data error for db={db_id}: {e}")
+                nodes.append(None)
+        processed_dataset.append([QueryFormerPreprocess(node, model).__getitem__() if node is not None else None for node in nodes])
     return processed_dataset
 
 
