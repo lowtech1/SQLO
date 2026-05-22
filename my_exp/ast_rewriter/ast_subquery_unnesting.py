@@ -1,46 +1,67 @@
-import sqlglot.expressions as exp
+import sqlglot
 import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from my_exp.ast_rewriter.ast_utils import parse_sql, clone_ast, ast_to_sql
+from my_exp.ast_rewriter.ast_utils import parse_sql
+
 
 class ASTSubqueryUnnesting:
     """
-    AST-based Subquery Unnesting optimization using sqlglot.
-    Detects IN (SELECT ...) patterns and attempts to safely rewrite them as JOINs.
-    
-    Example:
-        Input:  SELECT * FROM customers WHERE id IN (SELECT customer_id FROM orders);
-        Output: SELECT customers.* FROM customers JOIN orders ON customers.id = orders.customer_id;
+    AST-based Subquery Unnesting Optimization.
+
+    Muc dich: Chuyen doi IN/EXISTS subquery thanh JOIN de cho phep
+    PostgreSQL optimizer su dung Hash Join thay vi Nested Loop.
+
+    Su dung sqlglot optimizer de dam bao tinh dung dan.
+    Cong thuc: IN (SELECT ...) -> LEFT JOIN CTE ON ... WHERE NOT CTE.key IS NULL
+
+    Vi du:
+        Input:  SELECT c_name FROM customer WHERE c_custkey IN (SELECT o_custkey FROM orders WHERE o_totalprice > 100000);
+        Output: WITH "_u_0" AS (...) SELECT customer.c_name FROM customer LEFT JOIN "_u_0" ON "_u_0".o_custkey = customer.c_custkey WHERE NOT "_u_0".o_custkey IS NULL
     """
+
     def apply(self, sql: str) -> str:
+        """
+        Thu tu thuc hien:
+          1. Parse SQL thanh AST
+          2. Su dung sqlglot optimizer de unnest subqueries
+          3. Tra ve SQL da rewrite
+
+        Tai sao dung optimizer:
+          - Duoc test ky luong boi sqlglot
+          - Tu dong xu ly cac truong hop phuc tap
+          - Dam bao semantic equivalence
+        """
         try:
             ast = parse_sql(sql)
         except Exception:
             return sql
-            
-        ast_copy = clone_ast(ast)
-        
-        # sqlglot actually has an optimizer for this: unnest_subqueries
-        try:
-            from sqlglot.optimizer.unnest_subqueries import unnest_subqueries
-            # We apply the built-in unnest logic which is highly semantic-safe
-            optimized_ast = unnest_subqueries(ast_copy)
-            return ast_to_sql(optimized_ast)
-        except Exception:
-            # Fallback naive logic if optimizer isn't available or fails
-            for where in ast_copy.find_all(exp.Where):
-                for in_exp in where.find_all(exp.In):
-                    if isinstance(in_exp.query, exp.Select):
-                        # Manual rewriting logic goes here for simple cases
-                        pass
 
-        return ast_to_sql(ast_copy)
+        try:
+            optimized = sqlglot.optimizer.optimize(ast, read="postgres")
+            return optimized.sql(dialect="postgres")
+        except Exception:
+            return sql
+
 
 if __name__ == "__main__":
-    sql = "SELECT * FROM customers WHERE id IN (SELECT customer_id FROM orders);"
-    print("Input :", sql)
     rule = ASTSubqueryUnnesting()
-    print("Output:", rule.apply(sql))
+
+    tests = [
+        ("Simple IN",
+         "SELECT c_name FROM customer WHERE c_custkey IN (SELECT o_custkey FROM orders WHERE o_totalprice > 100000);"),
+        ("No subquery",
+         "SELECT * FROM orders WHERE o_totalprice > 50000;"),
+        ("IN with 2 tables",
+         "SELECT p_name FROM part WHERE p_partkey IN (SELECT l_partkey FROM lineitem WHERE l_quantity > 40);"),
+    ]
+
+    for name, sql in tests:
+        out = rule.apply(sql)
+        changed = "CHANGED" if out.strip() != sql.strip() else "unchanged"
+        print(f"[{name}] {changed}")
+        print(f"  IN : {sql}")
+        print(f"  OUT: {out}")
+        print()

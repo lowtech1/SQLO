@@ -75,7 +75,7 @@ class ASTPredicatePushdown:
             if not where:
                 continue
                 
-            from_exp = select.args.get("from")
+            from_exp = select.args.get("from_")
             if not from_exp:
                 continue
                 

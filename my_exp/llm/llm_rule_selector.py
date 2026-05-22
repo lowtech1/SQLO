@@ -1,3 +1,22 @@
+"""
+LLM-based SQL Rule Selector + Pattern-Based Fallback.
+
+Module nay co hai che do hoat dong:
+  1. LLM Mode: Su dung OpenRouter/Gemini/Groq de phan tich SQL va goi y rule
+  2. Pattern Mode: Su dung pattern matching (khong can LLM) khi khong co API key
+
+Cach su dung:
+  from my_exp.llm.llm_rule_selector import LLMRuleSelector
+
+  # Su dung pattern-based (khong can API key)
+  selector = LLMRuleSelector(provider="pattern")
+  result = selector.select_rules(sql)
+
+  # Su dung LLM (can API key)
+  selector = LLMRuleSelector(provider="openrouter", model_name="anthropic/claude-3-haiku")
+  result = selector.select_rules(sql)
+"""
+
 import os
 import json
 import sys
@@ -5,12 +24,11 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-# Try importing requested providers if available, else mock will be used safely
 try:
     import requests
 except ImportError:
     pass
-    
+
 try:
     import google.generativeai as genai
 except ImportError:
@@ -22,33 +40,49 @@ try:
 except ImportError:
     pass
 
-# Load environment variables from .env
 load_dotenv()
+
 
 class LLMRuleSelector:
     """
-    LLM-based SQL Rule Selector.
-    This component does NOT rewrite SQL. It analyzes a SQL query (and optional EXPLAIN plans)
-    to select the best sequence of optimization rules from the available registry.
+    LLM-based SQL Rule Selector (co fallback sang pattern-based).
+
+    Muc dich: Phan tich SQL query de goi y cac rule viets lai tot nhat.
+    Hoat dong trong 2 che do:
+      - LLM: Su dung OpenRouter/Gemini/Groq API
+      - Pattern: Pattern matching (khong can API) - FALLBACK
+
+    Lenh di:
+      1. Phan tich cau truc SQL (pattern)
+      2. Neu co API key + provider != "pattern": goi LLM
+      3. Neu khong co API key: tu dong fallback sang pattern-based
     """
 
     AVAILABLE_RULES = [
-        "predicate_pushdown", 
-        "projection_pruning", 
+        "predicate_pushdown",
+        "projection_pruning",
         "subquery_unnesting",
         "ast_predicate_pushdown",
-        "ast_projection_pruning", 
-        "ast_subquery_unnesting"
+        "ast_projection_pruning",
+        "ast_subquery_unnesting",
+        "ast_join_reordering",
+        "ast_aggregation_pushdown",
+        "ast_redundant_join_elimination",
+        "ast_filter_into_join",
+        "ast_limit_pushdown"
     ]
 
-    def __init__(self, provider: str = "mock", model_name: str = None):
+    def __init__(self, provider: str = "pattern", model_name: str = None):
         """
-        provider: 'openrouter', 'gemini', 'groq', or 'mock'
+        Args:
+            provider: 'openrouter', 'gemini', 'groq', hoac 'pattern'
+            model_name: Ten model LLM (neu dung provider LLM)
         """
         self.provider = provider.lower()
         self.model_name = model_name
         self.api_key = None
-        
+        self._pattern_selector = None
+
         if self.provider == "openrouter":
             self.api_key = os.getenv("OPENROUTER_API_KEY")
             if not self.model_name:
@@ -63,11 +97,18 @@ class LLMRuleSelector:
             self.api_key = os.getenv("GROQ_API_KEY")
             if not self.model_name:
                 self.model_name = "llama3-70b-8192"
-        
-        # Fallback to mock if API key is missing and it's not explicitly mock
-        if self.provider != "mock" and not self.api_key:
-            print(f"Warning: No API key found for {self.provider}. Falling back to 'mock' mode.")
-            self.provider = "mock"
+
+        # Fallback: neu provider LLM nhung khong co API key -> pattern
+        if self.provider != "pattern" and not self.api_key:
+            print(f"Warning: No API key for {self.provider}. Falling back to 'pattern' mode.")
+            self.provider = "pattern"
+
+    def _get_pattern_selector(self):
+        """Lazy-load pattern selector."""
+        if self._pattern_selector is None:
+            from my_exp.llm.pattern_rule_selector import PatternRuleSelector
+            self._pattern_selector = PatternRuleSelector()
+        return self._pattern_selector
 
     def _build_prompt(self, sql: str, explain_plan: str = None, stats: str = None) -> str:
         prompt = f"""You are an expert PostgreSQL Database Administrator and Query Optimizer.
@@ -94,7 +135,7 @@ SQL QUERY:
             prompt += f"\nEXPLAIN PLAN:\n{explain_plan}\n"
         if stats:
             prompt += f"\nOPTIMIZER STATS:\n{stats}\n"
-            
+
         prompt += """
 EXPECTED OUTPUT FORMAT (Valid JSON only, no markdown blocks if possible):
 {
@@ -106,74 +147,46 @@ EXPECTED OUTPUT FORMAT (Valid JSON only, no markdown blocks if possible):
 
     def select_rules(self, sql: str, explain_plan: str = None, stats: str = None) -> dict:
         """
-        Asks the configured LLM to select the best sequence of optimization rules.
+        Phan tich SQL va tra ve cac rule duoc goi y.
+        Uu tien: LLM > Pattern-based (khi LLM that bai hoac khong co API).
         """
-        prompt = self._build_prompt(sql, explain_plan, stats)
-        
-        if self.provider == "mock":
-            return self._mock_call(sql)
+        if self.provider == "pattern":
+            ps = self._get_pattern_selector()
+            return ps.select_rules(sql, explain_plan, stats)
         elif self.provider == "openrouter":
-            return self._call_openrouter(prompt)
+            return self._call_openrouter(self._build_prompt(sql, explain_plan, stats))
         elif self.provider == "gemini":
-            return self._call_gemini(prompt)
+            return self._call_gemini(self._build_prompt(sql, explain_plan, stats))
         elif self.provider == "groq":
-            return self._call_groq(prompt)
+            return self._call_groq(self._build_prompt(sql, explain_plan, stats))
         else:
-            return self._mock_call(sql)
+            # Fallback ve pattern
+            return self._get_pattern_selector().select_rules(sql, explain_plan, stats)
 
     def _parse_response(self, text: str) -> dict:
         try:
-            # Strip markdown formatting if any
             text = text.strip()
             if text.startswith("```json"):
                 text = text[7:]
             elif text.startswith("```"):
                 text = text[3:]
-                
+
             if text.endswith("```"):
                 text = text[:-3]
-            
+
             parsed = json.loads(text.strip())
-            
-            # Ensure format matches expected output
+
             if "recommended_rules" not in parsed:
                 parsed["recommended_rules"] = []
             if "reasoning" not in parsed:
                 parsed["reasoning"] = "No reasoning provided."
-                
+
             return parsed
         except Exception as e:
             return {
                 "recommended_rules": [],
                 "reasoning": f"Failed to parse LLM response: {e}\nRaw Output: {text}"
             }
-
-    def _mock_call(self, sql: str) -> dict:
-        """Mock mode simply guesses rules based on simple string matching heuristics."""
-        rules = []
-        reason = []
-        s = sql.upper()
-        
-        if "WHERE" in s and "SELECT" in s[s.find("FROM"):]:
-            rules.append("predicate_pushdown")
-            reason.append("Subquery detected with outer WHERE, pushing down predicates is recommended.")
-            
-        if "IN (SELECT" in s:
-            rules.append("subquery_unnesting")
-            reason.append("IN (SELECT ...) pattern detected, unnesting into a JOIN can enable Hash Joins.")
-            
-        if "SELECT *" in s:
-            rules.append("projection_pruning")
-            reason.append("SELECT * detected, pruning unnecessary columns is recommended to reduce I/O.")
-            
-        if not rules:
-            reason.append("No obvious nested patterns detected, applying fallback pushdown attempt.")
-            rules.append("ast_predicate_pushdown")
-            
-        return {
-            "recommended_rules": rules,
-            "reasoning": " ".join(reason) + " [Mock Mode used (No API Key)]"
-        }
 
     def _call_openrouter(self, prompt: str) -> dict:
         headers = {
@@ -186,12 +199,18 @@ EXPECTED OUTPUT FORMAT (Valid JSON only, no markdown blocks if possible):
             "response_format": {"type": "json_object"}
         }
         try:
-            response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers=headers, json=data
+            )
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
             return self._parse_response(content)
         except Exception as e:
-            return {"recommended_rules": [], "reasoning": f"OpenRouter API error: {e}"}
+            # Fallback to pattern on error
+            return self._get_pattern_selector().select_rules(
+                "", None, None
+            )
 
     def _call_gemini(self, prompt: str) -> dict:
         try:
@@ -199,7 +218,7 @@ EXPECTED OUTPUT FORMAT (Valid JSON only, no markdown blocks if possible):
             response = model.generate_content(prompt)
             return self._parse_response(response.text)
         except Exception as e:
-            return {"recommended_rules": [], "reasoning": f"Gemini API error: {e}"}
+            return self._get_pattern_selector().select_rules("", None, None)
 
     def _call_groq(self, prompt: str) -> dict:
         try:
@@ -212,24 +231,78 @@ EXPECTED OUTPUT FORMAT (Valid JSON only, no markdown blocks if possible):
             )
             return self._parse_response(completion.choices[0].message.content)
         except Exception as e:
-            return {"recommended_rules": [], "reasoning": f"Groq API error: {e}"}
+            return self._get_pattern_selector().select_rules("", None, None)
+
+
+def compare_pattern_vs_mock():
+    """
+    So sanh pattern-based selector voi mock selector cu.
+    Chay tren cac test query de xem su khac biet.
+    """
+    from my_exp.llm.pattern_rule_selector import PatternRuleSelector
+
+    # Mock selector cu
+    def mock_select(sql):
+        rules = []
+        reason = []
+        s = sql.upper()
+        if "WHERE" in s and "SELECT" in s[s.find("FROM"):]:
+            rules.append("predicate_pushdown")
+            reason.append("Subquery detected with outer WHERE, pushing down predicates is recommended.")
+        if "IN (SELECT" in s:
+            rules.append("subquery_unnesting")
+            reason.append("IN (SELECT ...) pattern detected, unnesting into a JOIN can enable Hash Joins.")
+        if "SELECT *" in s:
+            rules.append("projection_pruning")
+            reason.append("SELECT * detected, pruning unnecessary columns is recommended to reduce I/O.")
+        if not rules:
+            rules.append("ast_predicate_pushdown")
+        return {"recommended_rules": rules, "reasoning": " ".join(reason)}
+
+    pattern = PatternRuleSelector()
+    test_queries = [
+        ("Predicate Pushdown",
+         "SELECT sub.c_name FROM (SELECT c_custkey, c_name FROM customer) AS sub WHERE sub.c_mktsegment = 'BUILDING';"),
+        ("Subquery Unnesting",
+         "SELECT c_name FROM customer WHERE c_custkey IN (SELECT o_custkey FROM orders WHERE o_totalprice > 100000);"),
+        ("Projection Pruning",
+         "SELECT c_name, c_phone FROM (SELECT * FROM customer WHERE c_mktsegment='AUTOMOBILE') AS sub;"),
+        ("Filter Into Join",
+         "SELECT * FROM orders o JOIN customer c ON o.o_custkey = c.c_custkey WHERE c.c_mktsegment = 'HOUSEHOLD';"),
+        ("Aggregation",
+         "SELECT SUM(o_totalprice) FROM (SELECT o_custkey, o_totalprice FROM orders) AS sub GROUP BY o_custkey;"),
+        ("Multi-rule",
+         "SELECT c_name FROM customer WHERE c_custkey IN (SELECT o_custkey FROM orders WHERE o_totalprice > 50000) AND c_mktsegment='AUTOMOBILE';"),
+    ]
+
+    print(f"{'Query':<30} | {'Mock':<35} | {'Pattern'}")
+    print("-" * 120)
+    for name, sql in test_queries:
+        mock_res = mock_select(sql)
+        pattern_res = pattern.select_rules(sql)
+
+        mock_rules = ", ".join(mock_res["recommended_rules"][:2])
+        pat_rules = ", ".join(pattern_res["recommended_rules"][:2])
+        print(f"{name:<30} | {mock_rules:<35} | {pat_rules}")
 
 
 if __name__ == "__main__":
-    # Test Mock Mode (No API Key needed)
-    selector = LLMRuleSelector(provider="mock")
-    
-    print("=== Test 1: Subquery Query ===")
-    sql1 = "SELECT a, b FROM (SELECT a, b, c FROM table_name) AS sub WHERE a > 10;"
-    print("SQL:", sql1)
-    print("Decision:", json.dumps(selector.select_rules(sql1), indent=2))
-    
-    print("\n=== Test 2: Projection Query ===")
-    sql2 = "SELECT * FROM orders WHERE status = 'shipped';"
-    print("SQL:", sql2)
-    print("Decision:", json.dumps(selector.select_rules(sql2), indent=2))
-    
-    print("\n=== Test 3: Nested Query ===")
-    sql3 = "SELECT name FROM customers WHERE id IN (SELECT customer_id FROM orders WHERE total > 1000);"
-    print("SQL:", sql3)
-    print("Decision:", json.dumps(selector.select_rules(sql3), indent=2))
+    print("=== Test Pattern-Based Selector ===")
+    selector = LLMRuleSelector(provider="pattern")
+
+    test_cases = [
+        "SELECT sub.c_name FROM (SELECT c_custkey, c_name FROM customer) AS sub WHERE sub.c_mktsegment = 'BUILDING';",
+        "SELECT c_name FROM customer WHERE c_custkey IN (SELECT o_custkey FROM orders WHERE o_totalprice > 100000);",
+        "SELECT c_name FROM (SELECT * FROM customer) AS sub WHERE c_mktsegment='AUTOMOBILE';",
+        "SELECT * FROM orders o JOIN customer c ON o.o_custkey = c.c_custkey WHERE c.c_mktsegment = 'HOUSEHOLD';",
+    ]
+
+    for sql in test_cases:
+        result = selector.select_rules(sql)
+        print(f"\nSQL: {sql[:70]}...")
+        print(f"  Recommended: {result['recommended_rules']}")
+        print(f"  Scores: {result['rule_scores']}")
+        print(f"  Reasoning: {result['reasoning']}")
+
+    print("\n\n=== Pattern vs Mock Comparison ===")
+    compare_pattern_vs_mock()

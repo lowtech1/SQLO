@@ -65,7 +65,7 @@ class ASTFilterIntoJoin:
             if not where or not joins:
                 continue
                 
-            from_table = select.args.get("from")
+            from_table = select.args.get("from_")
             if not from_table:
                 continue
                 
