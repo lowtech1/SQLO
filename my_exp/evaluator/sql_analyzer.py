@@ -11,15 +11,9 @@ from my_exp.ast_rewriter.ast_join_reordering import ASTJoinReordering
 from my_exp.ast_rewriter.ast_aggregation_pushdown import ASTAggregationPushdown
 from my_exp.ast_rewriter.ast_redundant_join_elimination import ASTRedundantJoinElimination
 from my_exp.ast_rewriter.ast_filter_into_join import ASTFilterIntoJoin
-from my_exp.ast_rewriter.ast_utils import parse_sql  # noqa: F401
 
 
-try:
-    from my_exp.ast_rewriter.ast_limit_pushdown import ASTLimitPushdown
-except ImportError:
-    class ASTLimitPushdown:
-        def apply(self, sql: str) -> str:
-            return sql
+from my_exp.ast_rewriter.ast_limit_pushdown import ASTLimitPushdown
 
 
 # All rules map

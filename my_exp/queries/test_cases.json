@@ -166,5 +166,82 @@
     "sql": "SELECT sub.l_orderkey FROM (SELECT l_orderkey, l_quantity FROM lineitem JOIN orders ON l_orderkey = o_orderkey ORDER BY l_quantity DESC) AS sub LIMIT 20;",
     "target_rules": ["ast_limit_pushdown"],
     "expected_optimization": "Push LIMIT 20 into the JOIN subquery."
+  },
+  {
+    "query_id": "q25",
+    "name": "Predicate Pushdown 4 (multiple conditions)",
+    "sql": "SELECT sub.c_name FROM (SELECT c_custkey, c_name, c_phone, c_mktsegment FROM customer) AS sub WHERE sub.c_mktsegment = 'MACHINERY' AND sub.c_nationkey = 15;",
+    "target_rules": ["ast_predicate_pushdown"],
+    "expected_optimization": "Push both WHERE conditions down into the subquery."
+  },
+  {
+    "query_id": "q26",
+    "name": "Predicate Pushdown 5 (OR condition — unsafe)",
+    "sql": "SELECT sub.c_name FROM (SELECT c_custkey, c_name, c_mktsegment FROM customer) AS sub WHERE sub.c_mktsegment = 'MACHINERY' OR sub.c_nationkey = 15;",
+    "target_rules": ["ast_predicate_pushdown"],
+    "expected_optimization": "Predicate Pushdown with OR condition is unsafe — rule should NOT push."
+  },
+  {
+    "query_id": "q27",
+    "name": "Projection Pruning 4 (subquery with extra columns)",
+    "sql": "SELECT sub.o_orderkey FROM (SELECT * FROM orders WHERE o_orderstatus = 'F') AS sub WHERE sub.o_custkey > 5;",
+    "target_rules": ["ast_projection_pruning"],
+    "expected_optimization": "Prune unused columns from the SELECT * in the subquery."
+  },
+  {
+    "query_id": "q28",
+    "name": "Subquery Unnesting 4 (2-table IN, non-correlated)",
+    "sql": "SELECT c_name FROM customer WHERE c_custkey IN (SELECT o_custkey FROM orders WHERE o_orderdate > '1996-01-01');",
+    "target_rules": ["ast_subquery_unnesting"],
+    "expected_optimization": "Unnest non-correlated IN subquery into JOIN."
+  },
+  {
+    "query_id": "q29",
+    "name": "Join Reordering 4 (4-table chain)",
+    "sql": "SELECT * FROM orders o JOIN customer c ON o.o_custkey = c.c_custkey JOIN nation n ON c.c_nationkey = n.n_nationkey JOIN region r ON n.n_regionkey = r.r_regionkey WHERE r.r_name = 'ASIA';",
+    "target_rules": ["ast_join_reordering"],
+    "expected_optimization": "Reorder joins to process nation/region (small) before orders/customer (large)."
+  },
+  {
+    "query_id": "q30",
+    "name": "Redundant Join Elimination 4 (3-table, partially redundant)",
+    "sql": "SELECT o.o_orderkey FROM orders o JOIN customer c ON o.o_custkey = c.c_custkey JOIN nation n ON c.c_nationkey = n.n_nationkey WHERE o.o_totalprice > 100000;",
+    "target_rules": ["ast_redundant_join_elimination"],
+    "expected_optimization": "Eliminate join with nation table because n columns are unused in projection and WHERE."
+  },
+  {
+    "query_id": "q31",
+    "name": "Filter Into Join 4 (multiple JOINs)",
+    "sql": "SELECT * FROM orders o JOIN customer c ON o.o_custkey = c.c_custkey JOIN lineitem l ON o.o_orderkey = l.l_orderkey WHERE c.c_mktsegment = 'FURNITURE';",
+    "target_rules": ["ast_filter_into_join"],
+    "expected_optimization": "Push c_mktsegment filter into customer JOIN ON clause."
+  },
+  {
+    "query_id": "q32",
+    "name": "Aggregation Pushdown 4 (AVG aggregate)",
+    "sql": "SELECT sub.p_brand, AVG(sub.p_retailprice) AS avg_price FROM (SELECT p_brand, p_retailprice FROM part WHERE p_type LIKE '%COPPER%') AS sub GROUP BY sub.p_brand;",
+    "target_rules": ["ast_aggregation_pushdown"],
+    "expected_optimization": "Push AVG aggregation and GROUP BY into the subquery."
+  },
+  {
+    "query_id": "q33",
+    "name": "Limit Pushdown 4 (with OFFSET)",
+    "sql": "SELECT sub.c_name FROM (SELECT c_name, c_acctbal FROM customer ORDER BY c_acctbal DESC) AS sub LIMIT 10 OFFSET 5;",
+    "target_rules": ["ast_limit_pushdown"],
+    "expected_optimization": "Push LIMIT into subquery, OFFSET stays outside."
+  },
+  {
+    "query_id": "q34",
+    "name": "Multi-rule: Predicate + Projection Pushdown",
+    "sql": "SELECT sub.c_name, sub.c_phone FROM (SELECT c_custkey, c_name, c_phone, c_mktsegment FROM customer) AS sub WHERE sub.c_mktsegment = 'FURNITURE' AND sub.c_acctbal > 1000;",
+    "target_rules": ["ast_predicate_pushdown", "ast_projection_pruning"],
+    "expected_optimization": "Push both WHERE conditions and prune extra columns."
+  },
+  {
+    "query_id": "q35",
+    "name": "Multi-rule: Join Reorder + Filter Into Join",
+    "sql": "SELECT * FROM lineitem l JOIN orders o ON l.l_orderkey = o.o_orderkey JOIN customer c ON o.o_custkey = c.c_custkey WHERE c.c_mktsegment = 'HOUSEHOLD' AND o.o_orderdate > '1996-01-01';",
+    "target_rules": ["ast_join_reordering", "ast_filter_into_join"],
+    "expected_optimization": "Join reordering + filter pushdown into JOIN."
   }
 ]
