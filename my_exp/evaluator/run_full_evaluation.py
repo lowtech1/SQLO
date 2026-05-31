@@ -22,8 +22,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 from my_exp.evaluator.postgres_runner import PostgresRunner
 from my_exp.evaluator.explain_parser import ExplainParser
-from my_exp.evaluator.plan_comparator import PlanComparator
 from my_exp.evaluator.sql_analyzer import SQLPatternAnalyzer, ALL_RULES
+from my_exp.evaluator.dataset_loader import load_test_cases
 
 
 def _determine_winner(metrics_orig: dict, metrics_rew: dict) -> str:
@@ -89,18 +89,26 @@ def _check_row_count_equiv(runner: PostgresRunner, sql_orig: str,
         return None
 
 
-def run_full_evaluation():
+def run_full_evaluation(dataset: str = "tpch", sample: int = 0):
+    """Run KB evaluation on a dataset.
+
+    Args:
+        dataset: 'tpch', 'dsb', or 'job'. Defaults to 'tpch'.
+        sample: If > 0, only evaluate first N queries.
+    """
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-    queries_file = os.path.join(base_dir, 'my_exp', 'queries', 'test_cases.json')
     results_dir = os.path.join(base_dir, 'my_exp', 'results')
     os.makedirs(results_dir, exist_ok=True)
 
-    with open(queries_file, 'r', encoding='utf-8') as f:
-        queries = json.load(f)
+    queries = load_test_cases(dataset)
+    if sample > 0:
+        queries = queries[:sample]
+    if not queries:
+        print(f"[ERROR] No queries found for dataset '{dataset}'")
+        return
 
-    runner = PostgresRunner()
+    runner = PostgresRunner(dataset)
     parser = ExplainParser()
-    comparator = PlanComparator()
     analyzer = SQLPatternAnalyzer()
 
     # --- PostgreSQL settings: work_mem=4MB×4=16MB, parallel enabled (16GB RAM) ---
@@ -148,11 +156,12 @@ def run_full_evaluation():
     csv_path = os.path.join(results_dir, f'full_evaluation_per_rule_{ts}.csv')
 
     # Rename final paths only after success
-    final_jsonl = os.path.join(results_dir, 'full_evaluation_results.jsonl')
-    final_csv = os.path.join(results_dir, 'full_evaluation_per_rule.csv')
+    ds_suffix = f"_{dataset}" if dataset != "tpch" else ""
+    final_jsonl = os.path.join(results_dir, f'full_evaluation_results{ds_suffix}.jsonl')
+    final_csv = os.path.join(results_dir, f'full_evaluation_per_rule{ds_suffix}.csv')
 
     csv_fieldnames = [
-        "query_id", "name", "rule_name", "target_rule", "changed",
+        "query_id", "name", "dataset", "rule_name", "target_rule", "changed",
         "time_orig_ms", "time_rew_ms",
         "cost_orig", "cost_rew",
         "time_improvement_pct", "cost_reduction_pct",
@@ -198,6 +207,7 @@ def run_full_evaluation():
         jsonl_record = {
             "query_id": qid,
             "name": name,
+            "dataset": dataset,
             "target_rules": target,
             "recommended_rules": analysis["recommended_rules"][:3],
             "sql_patterns": {k: v for k, v in analysis["sql_analysis"].items() if v},
@@ -381,4 +391,12 @@ def run_full_evaluation():
 
 
 if __name__ == "__main__":
-    run_full_evaluation()
+    import argparse
+    parser = argparse.ArgumentParser(description="KB-based full evaluation")
+    parser.add_argument("--dataset", default="tpch",
+                        choices=["tpch", "dsb", "job"],
+                        help="Dataset to evaluate on (default: tpch)")
+    parser.add_argument("--sample", type=int, default=0,
+                        help="Only evaluate first N queries (0=all)")
+    args = parser.parse_args()
+    run_full_evaluation(dataset=args.dataset, sample=args.sample)

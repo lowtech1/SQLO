@@ -1,6 +1,7 @@
 from sqlglot import expressions as exp
 import sys
 import os
+import threading
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
@@ -25,6 +26,49 @@ TPCH_SCHEMA = {
     "supplier": ["s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone",
                  "s_acctbal", "s_comment"],
 }
+
+
+# Cache cho runtime schema lookup (from information_schema)
+_runtime_schema_cache = {}
+
+
+def _get_runtime_columns(cursor, table_name: str) -> list:
+    """Lay cot cua bang tu PostgreSQL information_schema, co cache."""
+    if table_name in _runtime_schema_cache:
+        return _runtime_schema_cache[table_name]
+    try:
+        cursor.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = %s AND table_schema = 'public'
+            ORDER BY ordinal_position
+        """, (table_name,))
+        cols = [row[0] for row in cursor.fetchall()]
+        _runtime_schema_cache[table_name] = cols
+        return cols
+    except Exception:
+        return []
+
+
+def _get_runtime_columns_global(table_name: str) -> list:
+    """Fallback: thu lay cot tu database neu co cursor global."""
+    import threading
+    conn = getattr(_tls_connection, 'conn', None)
+    if conn:
+        try:
+            with conn.cursor() as cur:
+                return _get_runtime_columns(cur, table_name)
+        except Exception:
+            pass
+    return []
+
+
+class _TLSConnection:
+    """Thread-local connection for schema lookup."""
+    def __init__(self):
+        self.conn = None
+
+
+_tls_connection = threading.local()
 
 
 class ASTProjectionPruning:
@@ -104,10 +148,10 @@ class ASTProjectionPruning:
         return needed
 
     def _expand_star(self, star: exp.Star, subquery_select: exp.Select,
-                     outer_select: exp.Select) -> list:
+                     outer_select: exp.Select, cursor=None) -> list:
         """
         Thay SELECT * bang cac cot thuc te.
-        Su dung TPC-H schema de biet cot nao ton tai.
+        Uu tien: TPCH_SCHEMA -> runtime schema lookup (neu co cursor).
         """
         tables = self._get_subquery_columns(subquery_select)
         if not tables:
@@ -116,8 +160,14 @@ class ASTProjectionPruning:
         all_cols = set()
         for tbl_name, tbl_alias in tables:
             key = tbl_name.lower()
+            # 1. TPCH schema (uu tien)
             if key in TPCH_SCHEMA:
                 for col in TPCH_SCHEMA[key]:
+                    all_cols.add(col.lower())
+            # 2. Runtime schema lookup (neu co cursor)
+            elif cursor:
+                runtime_cols = _get_runtime_columns(cursor, tbl_name)
+                for col in runtime_cols:
                     all_cols.add(col.lower())
 
         if not all_cols:
@@ -143,11 +193,16 @@ class ASTProjectionPruning:
             return True
         return False
 
-    def apply(self, sql: str) -> str:
+    def apply(self, sql: str, cursor=None) -> str:
+        """Apply projection pruning to SQL. cursor=None means no runtime schema lookup."""
         try:
             ast = parse_sql(sql)
         except Exception:
             return sql
+
+        # Neu co cursor, thi dung no cho runtime schema lookup
+        if cursor is not None:
+            _tls_connection.conn = cursor
 
         ast_copy = clone_ast(ast)
 
@@ -164,7 +219,7 @@ class ASTProjectionPruning:
                     sub_alias = table_expr.alias
                     if sub_alias:
                         expanded = self._expand_star(
-                            inner_select.expressions[0], inner_select, select
+                            inner_select.expressions[0], inner_select, select, cursor
                         )
                         inner_select.set("expressions", expanded)
 

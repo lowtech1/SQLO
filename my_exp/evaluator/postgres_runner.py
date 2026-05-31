@@ -17,10 +17,10 @@ class PostgresRunner:
     A utility class to connect to PostgreSQL and execute queries or retrieve query execution plans.
     """
 
-    def __init__(self):
+    def __init__(self, dbname: str = None):
         self.host = os.getenv("POSTGRES_HOST", "localhost")
         self.port = os.getenv("POSTGRES_PORT", "5432")
-        self.dbname = os.getenv("POSTGRES_DB", "postgres")
+        self.dbname = dbname or os.getenv("POSTGRES_DB", "postgres")
         self.user = os.getenv("POSTGRES_USER", "postgres")
         self.password = os.getenv("POSTGRES_PASSWORD", "")
         self.conn = None
