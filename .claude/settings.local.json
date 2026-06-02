@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout 300 ..\\\\.venv\\\\Scripts\\\\python.exe -X utf8 LLM_R2_Claude.py)"
+      "Bash(timeout 300 ..\\\\.venv\\\\Scripts\\\\python.exe -X utf8 LLM_R2_Claude.py)",
+      "Bash(python my_exp/evaluator/setup_dsb_synthetic.py)"
     ]
   }
 }

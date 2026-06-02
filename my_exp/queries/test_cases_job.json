@@ -1,0 +1,502 @@
+[
+  {
+    "query_id": "job_1",
+    "name": "JOB Query 1",
+    "sql": "SELECT * FROM title t,movie_info_idx mi_idx WHERE t.id=mi_idx.movie_id AND t.kind_id>2 AND t.production_year>2010 AND mi_idx.info_type_id=99;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_2",
+    "name": "JOB Query 2",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_info mi WHERE t.id=mc.movie_id AND t.id=mi.movie_id AND mc.company_id<45851 AND mi.info_type_id=16;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_3",
+    "name": "JOB Query 3",
+    "sql": "SELECT * FROM title t,cast_info ci,movie_info_idx mi_idx WHERE t.id=ci.movie_id AND t.id=mi_idx.movie_id AND ci.person_id<1798117 AND ci.role_id>1 AND mi_idx.info_type_id=101;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_4",
+    "name": "JOB Query 4",
+    "sql": "SELECT * FROM title t,movie_info mi,movie_keyword mk WHERE t.id=mi.movie_id AND t.id=mk.movie_id AND t.kind_id=7 AND t.production_year<1996 AND mi.info_type_id=3;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_5",
+    "name": "JOB Query 5",
+    "sql": "SELECT * FROM title t,cast_info ci,movie_info mi WHERE t.id=ci.movie_id AND t.id=mi.movie_id AND t.production_year<2009 AND ci.role_id=6;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_6",
+    "name": "JOB Query 6",
+    "sql": "SELECT * FROM title t,cast_info ci WHERE t.id=ci.movie_id AND t.production_year=1992 AND ci.person_id<3750295;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_7",
+    "name": "JOB Query 7",
+    "sql": "SELECT * FROM cast_info ci WHERE ci.person_id>2583195 AND ci.role_id=3;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_8",
+    "name": "JOB Query 8",
+    "sql": "SELECT * FROM title t,movie_companies mc WHERE t.id=mc.movie_id AND mc.company_id>11145 AND mc.company_type_id=1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_9",
+    "name": "JOB Query 9",
+    "sql": "SELECT * FROM title t,cast_info ci,movie_keyword mk WHERE t.id=ci.movie_id AND t.id=mk.movie_id AND t.kind_id=3 AND t.production_year=1997 AND ci.person_id>386835 AND ci.role_id=1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_10",
+    "name": "JOB Query 10",
+    "sql": "SELECT * FROM title t,movie_info_idx mi_idx,movie_keyword mk WHERE t.id=mi_idx.movie_id AND t.id=mk.movie_id AND t.kind_id=7 AND t.production_year=2008 AND mi_idx.info_type_id<100;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_11",
+    "name": "JOB Query 11",
+    "sql": "SELECT * FROM title t,movie_companies mc,cast_info ci WHERE t.id=mc.movie_id AND t.id=ci.movie_id AND t.kind_id=7 AND mc.company_type_id=1 AND ci.person_id<3978504;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_12",
+    "name": "JOB Query 12",
+    "sql": "SELECT * FROM movie_companies mc WHERE mc.company_id>14922;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_13",
+    "name": "JOB Query 13",
+    "sql": "SELECT * FROM title t,movie_info mi,movie_keyword mk WHERE t.id=mi.movie_id AND t.id=mk.movie_id AND mk.keyword_id<1382;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_14",
+    "name": "JOB Query 14",
+    "sql": "SELECT * FROM title t,cast_info ci,movie_keyword mk WHERE t.id=ci.movie_id AND t.id=mk.movie_id AND t.production_year<1990 AND ci.person_id<1289678 AND ci.role_id<2 AND mk.keyword_id=3521;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_15",
+    "name": "JOB Query 15",
+    "sql": "SELECT * FROM title t,movie_info mi,movie_info_idx mi_idx WHERE t.id=mi.movie_id AND t.id=mi_idx.movie_id AND t.production_year<2010 AND mi.info_type_id<13;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_16",
+    "name": "JOB Query 16",
+    "sql": "SELECT * FROM cast_info ci WHERE ci.person_id>252027 AND ci.role_id>3;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_17",
+    "name": "JOB Query 17",
+    "sql": "SELECT * FROM title t,movie_info mi,movie_keyword mk WHERE t.id=mi.movie_id AND t.id=mk.movie_id AND mi.info_type_id>16 AND mk.keyword_id=10104;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_18",
+    "name": "JOB Query 18",
+    "sql": "SELECT * FROM title t,movie_keyword mk WHERE t.id=mk.movie_id AND t.kind_id>1 AND t.production_year=2008 AND mk.keyword_id>1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_19",
+    "name": "JOB Query 19",
+    "sql": "SELECT * FROM cast_info ci WHERE ci.person_id>1347087;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_20",
+    "name": "JOB Query 20",
+    "sql": "SELECT * FROM title t,cast_info ci,movie_info_idx mi_idx WHERE t.id=ci.movie_id AND t.id=mi_idx.movie_id AND t.production_year>1999 AND ci.person_id=1164479 AND ci.role_id=1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_21",
+    "name": "JOB Query 21",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_keyword mk WHERE t.id=mc.movie_id AND t.id=mk.movie_id AND t.kind_id=1 AND mc.company_id<20235;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_22",
+    "name": "JOB Query 22",
+    "sql": "SELECT * FROM title t,movie_info_idx mi_idx,movie_keyword mk WHERE t.id=mi_idx.movie_id AND t.id=mk.movie_id AND t.kind_id=1 AND t.production_year>0 AND mi_idx.info_type_id<101 AND mk.keyword_id<16264;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_23",
+    "name": "JOB Query 23",
+    "sql": "SELECT * FROM title t,movie_companies mc,cast_info ci WHERE t.id=mc.movie_id AND t.id=ci.movie_id AND mc.company_id=11264 AND mc.company_type_id=2 AND ci.role_id=1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_24",
+    "name": "JOB Query 24",
+    "sql": "SELECT * FROM title t,cast_info ci WHERE t.id=ci.movie_id AND ci.person_id=2907675 AND ci.role_id>1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_25",
+    "name": "JOB Query 25",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_keyword mk WHERE t.id=mc.movie_id AND t.id=mk.movie_id AND mc.company_id=9174;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_26",
+    "name": "JOB Query 26",
+    "sql": "SELECT * FROM title t,cast_info ci,movie_info mi WHERE t.id=ci.movie_id AND t.id=mi.movie_id AND ci.person_id>2071795 AND ci.role_id<8;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_27",
+    "name": "JOB Query 27",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_info_idx mi_idx WHERE t.id=mc.movie_id AND t.id=mi_idx.movie_id AND mc.company_id=1396 AND mc.company_type_id=1 AND mi_idx.info_type_id>100;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_28",
+    "name": "JOB Query 28",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_keyword mk WHERE t.id=mc.movie_id AND t.id=mk.movie_id AND mc.company_id=52;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_29",
+    "name": "JOB Query 29",
+    "sql": "SELECT * FROM title t,cast_info ci,movie_info mi WHERE t.id=ci.movie_id AND t.id=mi.movie_id AND ci.person_id=3311036 AND ci.role_id>3;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_30",
+    "name": "JOB Query 30",
+    "sql": "SELECT * FROM title t,movie_info_idx mi_idx,movie_keyword mk WHERE t.id=mi_idx.movie_id AND t.id=mk.movie_id AND mk.keyword_id>6960;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_31",
+    "name": "JOB Query 31",
+    "sql": "SELECT * FROM title t,cast_info ci WHERE t.id=ci.movie_id AND t.kind_id=7 AND t.production_year<1997 AND ci.person_id>2557075 AND ci.role_id>1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_32",
+    "name": "JOB Query 32",
+    "sql": "SELECT * FROM movie_companies mc WHERE mc.company_id>10295 AND mc.company_type_id=1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_33",
+    "name": "JOB Query 33",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_info mi WHERE t.id=mc.movie_id AND t.id=mi.movie_id AND mc.company_id<459 AND mi.info_type_id<8;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_34",
+    "name": "JOB Query 34",
+    "sql": "SELECT * FROM title t,cast_info ci WHERE t.id=ci.movie_id AND t.production_year>2008 AND ci.person_id<2062618 AND ci.role_id=3;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_35",
+    "name": "JOB Query 35",
+    "sql": "SELECT * FROM title t,cast_info ci WHERE t.id=ci.movie_id AND ci.person_id>3519621 AND ci.role_id>1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_36",
+    "name": "JOB Query 36",
+    "sql": "SELECT * FROM title t WHERE t.kind_id<4 AND t.production_year=1941;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_37",
+    "name": "JOB Query 37",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_info mi WHERE t.id=mc.movie_id AND t.id=mi.movie_id AND t.production_year<1973 AND mc.company_type_id<2 AND mi.info_type_id<2;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_38",
+    "name": "JOB Query 38",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_info mi WHERE t.id=mc.movie_id AND t.id=mi.movie_id AND mc.company_id<1498 AND mc.company_type_id<2;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_39",
+    "name": "JOB Query 39",
+    "sql": "SELECT * FROM movie_companies mc WHERE mc.company_id=88364;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_40",
+    "name": "JOB Query 40",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_info_idx mi_idx WHERE t.id=mc.movie_id AND t.id=mi_idx.movie_id AND t.kind_id=3 AND t.production_year=2006 AND mc.company_type_id>1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_41",
+    "name": "JOB Query 41",
+    "sql": "SELECT * FROM title t,cast_info ci WHERE t.id=ci.movie_id AND ci.person_id=578700 AND ci.role_id=1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_42",
+    "name": "JOB Query 42",
+    "sql": "SELECT * FROM title t,movie_companies mc WHERE t.id=mc.movie_id AND t.kind_id>1 AND t.production_year>2002 AND mc.company_type_id>1;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_43",
+    "name": "JOB Query 43",
+    "sql": "SELECT * FROM title t,movie_companies mc,movie_keyword mk WHERE t.id=mc.movie_id AND t.id=mk.movie_id AND mc.company_id<82 AND mc.company_type_id<2 AND mk.keyword_id=793;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_44",
+    "name": "JOB Query 44",
+    "sql": "SELECT * FROM title t,movie_keyword mk WHERE t.id=mk.movie_id AND t.kind_id=7 AND t.production_year>1983 AND mk.keyword_id>3639;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_45",
+    "name": "JOB Query 45",
+    "sql": "SELECT * FROM title t,cast_info ci WHERE t.id=ci.movie_id AND t.kind_id=7 AND t.production_year=2011 AND ci.person_id>2224539 AND ci.role_id=9;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_46",
+    "name": "JOB Query 46",
+    "sql": "SELECT * FROM title t,movie_companies mc WHERE t.id=mc.movie_id AND t.kind_id>4 AND t.production_year>1968;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_47",
+    "name": "JOB Query 47",
+    "sql": "SELECT * FROM title t,movie_info mi WHERE t.id=mi.movie_id AND t.kind_id<7 AND t.production_year<1986 AND mi.info_type_id<3;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_48",
+    "name": "JOB Query 48",
+    "sql": "SELECT * FROM title t,movie_keyword mk WHERE t.id=mk.movie_id AND mk.keyword_id<8787;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_49",
+    "name": "JOB Query 49",
+    "sql": "SELECT * FROM title t,movie_keyword mk WHERE t.id=mk.movie_id AND t.kind_id<4 AND mk.keyword_id<12917;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  },
+  {
+    "query_id": "job_50",
+    "name": "JOB Query 50",
+    "sql": "SELECT * FROM title t,movie_info mi WHERE t.id=mi.movie_id AND t.production_year<1912 AND mi.info_type_id<4;",
+    "target_rules": [
+      "ast_projection_pruning",
+      "ast_predicate_pushdown"
+    ],
+    "expected_optimization": "JOB query optimization"
+  }
+]
