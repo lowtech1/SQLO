@@ -20,6 +20,13 @@ from my_exp.api.models import (
     Metrics,
     RuleRecommendations,
     RecommendationItem,
+    Candidate,
+    CandidatePlan,
+    CandidatePlanComparison,
+    SemanticCheck,
+    PlanMetrics,
+    PlanComparison,
+    Recommendation,
 )
 
 
@@ -40,7 +47,7 @@ def get_pipeline():
 # ── Mock data factory ──────────────────────────────────────────────────────────
 
 def _make_mock_result(raw_sql: str) -> AnalysisResult:
-    """Build a mock AnalysisResult when no DB is available."""
+    """Build a mock AnalysisResult that matches the full schema."""
     query_id = f"q_{uuid.uuid4().hex[:8].upper()}"
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -88,24 +95,118 @@ def _make_mock_result(raw_sql: str) -> AnalysisResult:
             cpu_cost=440.0,
             execution_time_ms=125.0,
         ),
+        candidates=[
+            Candidate(
+                id="cand_0",
+                sql=raw_sql,
+                is_original=True,
+                changed=False,
+                rules_applied=[],
+                semantic_check=SemanticCheck(
+                    equivalent=True,
+                    details="Original query — baseline for comparison",
+                ),
+                plan_comparison=CandidatePlanComparison(
+                    original=CandidatePlan(metrics=PlanMetrics(
+                        total_cost=1450.0,
+                        io_cost=850.0,
+                        cpu_cost=600.0,
+                        estimated_time_ms=340.0,
+                    )),
+                    rewritten=CandidatePlan(metrics=PlanMetrics(
+                        total_cost=1450.0,
+                        io_cost=850.0,
+                        cpu_cost=600.0,
+                        estimated_time_ms=340.0,
+                    )),
+                    comparison=PlanComparison(
+                        cost_improvement_pct=0.0,
+                        io_improvement_pct=0.0,
+                        cpu_improvement_pct=0.0,
+                    ),
+                ),
+                confidence="High",
+            ),
+            Candidate(
+                id="cand_1",
+                sql=raw_sql.replace("SELECT a.*, b.*", "SELECT a.id, a.order_date, b.name")
+                        .replace("LEFT JOIN", "INNER JOIN"),
+                is_original=False,
+                changed=True,
+                rules_applied=["projection_pruning", "join_reordering"],
+                semantic_check=SemanticCheck(
+                    equivalent=True,
+                    details="Projection Pruning + Join Reordering applied. "
+                            "LEFT JOIN converted to INNER JOIN — equivalent given mandatory WHERE filter.",
+                ),
+                plan_comparison=CandidatePlanComparison(
+                    original=CandidatePlan(metrics=PlanMetrics(
+                        total_cost=1450.0,
+                        io_cost=850.0,
+                        cpu_cost=600.0,
+                        estimated_time_ms=340.0,
+                    )),
+                    rewritten=CandidatePlan(metrics=PlanMetrics(
+                        total_cost=820.0,
+                        io_cost=380.0,
+                        cpu_cost=440.0,
+                        estimated_time_ms=125.0,
+                    )),
+                    comparison=PlanComparison(
+                        cost_improvement_pct=-43.4,
+                        io_improvement_pct=-55.3,
+                        cpu_improvement_pct=-26.7,
+                    ),
+                ),
+                confidence="High",
+            ),
+            Candidate(
+                id="cand_2",
+                sql=raw_sql.replace("SELECT a.*, b.*", "SELECT a.id, a.order_date, a.cust_id, b.name, b.status"),
+                is_original=False,
+                changed=True,
+                rules_applied=["projection_pruning"],
+                semantic_check=SemanticCheck(
+                    equivalent=True,
+                    details="Projection Pruning only — LEFT JOIN preserved",
+                ),
+                plan_comparison=CandidatePlanComparison(
+                    original=CandidatePlan(metrics=PlanMetrics(
+                        total_cost=1450.0,
+                        io_cost=850.0,
+                        cpu_cost=600.0,
+                        estimated_time_ms=340.0,
+                    )),
+                    rewritten=CandidatePlan(metrics=PlanMetrics(
+                        total_cost=1180.0,
+                        io_cost=620.0,
+                        cpu_cost=560.0,
+                        estimated_time_ms=210.0,
+                    )),
+                    comparison=PlanComparison(
+                        cost_improvement_pct=-18.6,
+                        io_improvement_pct=-27.1,
+                        cpu_improvement_pct=-6.7,
+                    ),
+                ),
+                confidence="Medium",
+            ),
+        ],
+        recommendation=Recommendation(
+            best_candidate_id="cand_1",
+            best_sql=raw_sql.replace("SELECT a.*, b.*", "SELECT a.id, a.order_date, b.name")
+                          .replace("LEFT JOIN", "INNER JOIN"),
+            best_rules=["projection_pruning", "join_reordering"],
+            improvement_pct=-43.4,
+            semantic_equivalent=True,
+            confidence=0.95,
+        ),
     )
 
 
 # ── Data adapter ────────────────────────────────────────────────────────────────
 # Maps the raw legacy pipeline output dict → Pydantic AnalysisResult.
 # Every field uses .get() with a fallback so missing keys never raise KeyError.
-
-def _extract_snippet(full_sql: str, changed_fragment: str) -> tuple[str, str]:
-    """
-    Extract before/after snippets from full SQL strings.
-    Falls back to the full SQL if no clear fragment is identifiable.
-    """
-    if not full_sql:
-        return "", ""
-    if not changed_fragment:
-        return full_sql, full_sql
-    return changed_fragment, full_sql
-
 
 def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> AnalysisResult:
     """
@@ -117,6 +218,7 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
     - Malformed recommendations lists
     - Missing or zero-valued metrics
     - Missing before_snippet / after_snippet fields
+    - Full candidate list + recommendation block
     """
     # ── Rule recommendations ──────────────────────────────────────
     rr_raw = raw_result.get("rule_recommendations") or {}
@@ -126,17 +228,12 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
     for r in recs_raw:
         if not isinstance(r, dict):
             continue
-        before = r.get("before_snippet") or r.get("before") or ""
-        after  = r.get("after_snippet")  or r.get("after")  or ""
-        if not before and not after:
-            before, after = _extract_snippet(original_sql, r.get("rule", ""))
-
         recs.append(RecommendationItem(
             rule=r.get("rule", "unknown"),
             priority=r.get("priority", 99),
             reason=r.get("reason") or r.get("expected_benefit") or "",
-            before_snippet=before,
-            after_snippet=after,
+            before_snippet=r.get("before_snippet") or r.get("before") or "",
+            after_snippet=r.get("after_snippet") or r.get("after") or "",
         ))
 
     rule_recommendations = RuleRecommendations(
@@ -145,24 +242,89 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
         recommendations=recs,
     )
 
-    # ── Metrics — pick the best candidate's rewritten metrics ──────
-    metrics = None
-    candidates = raw_result.get("candidates") or []
-    for c in candidates:
-        plan = c.get("plan_comparison") or {}
-        rewritten = plan.get("rewritten") or {}
-        m = rewritten.get("metrics") if isinstance(rewritten, dict) else None
-        if m:
-            metrics = Metrics(
-                total_cost=m.get("total_cost", 0.0),
-                io_cost=m.get("total_cost", 0.0) * 0.46,   # approximate split
-                cpu_cost=m.get("total_cost", 0.0) * 0.54,
-                execution_time_ms=m.get("total_time_ms", 0.0),
-            )
-            break
+    # ── Candidates ─────────────────────────────────────────────────
+    candidates_raw = raw_result.get("candidates") or []
+    candidates = []
 
-    if metrics is None:
+    for c in candidates_raw:
+        if not isinstance(c, dict):
+            continue
+
+        plan = c.get("plan_comparison") or {}
+        orig = plan.get("original") or {}
+        rew  = plan.get("rewritten") or {}
+        comp = plan.get("comparison") or {}
+
+        m_orig = orig.get("metrics") if isinstance(orig, dict) else None
+        m_rew  = rew.get("metrics")  if isinstance(rew, dict)  else None
+
+        sem_raw = c.get("semantic_check") or {}
+
+        candidates.append(Candidate(
+            id=str(c.get("id", "")),
+            sql=c.get("sql", ""),
+            is_original=c.get("is_original", False),
+            changed=c.get("changed", False),
+            rules_applied=c.get("rules_applied") or [],
+            semantic_check=SemanticCheck(
+                equivalent=sem_raw.get("equivalent", False),
+                error=sem_raw.get("error"),
+                details=sem_raw.get("details", ""),
+            ),
+            plan_comparison=CandidatePlanComparison(
+                original=CandidatePlan(
+                    metrics=PlanMetrics(
+                        total_cost=m_orig.get("total_cost", 0.0) if m_orig else 0.0,
+                        io_cost=m_orig.get("total_cost", 0.0) * 0.46 if m_orig else 0.0,
+                        cpu_cost=m_orig.get("total_cost", 0.0) * 0.54 if m_orig else 0.0,
+                        estimated_time_ms=m_orig.get("total_time_ms", 0.0) if m_orig else 0.0,
+                    ) if m_orig else None,
+                ),
+                rewritten=CandidatePlan(
+                    metrics=PlanMetrics(
+                        total_cost=m_rew.get("total_cost", 0.0) if m_rew else 0.0,
+                        io_cost=m_rew.get("total_cost", 0.0) * 0.46 if m_rew else 0.0,
+                        cpu_cost=m_rew.get("total_cost", 0.0) * 0.54 if m_rew else 0.0,
+                        estimated_time_ms=m_rew.get("total_time_ms", 0.0) if m_rew else 0.0,
+                    ) if m_rew else None,
+                ),
+                comparison=PlanComparison(
+                    cost_improvement_pct=comp.get("cost_improvement_pct", 0.0),
+                    io_improvement_pct=comp.get("io_improvement_pct", 0.0),
+                    cpu_improvement_pct=comp.get("cpu_improvement_pct", 0.0),
+                ) if comp else None,
+            ) if plan else None,
+            confidence=c.get("confidence"),
+            warning=c.get("warning"),
+        ))
+
+    # ── Metrics — best candidate's rewritten plan ──────────────────
+    best = next(
+        (c for c in candidates
+         if c.id == raw_result.get("recommendation", {}).get("best_candidate_id", "")),
+        None,
+    )
+    if best and best.plan_comparison and best.plan_comparison.rewritten and best.plan_comparison.rewritten.metrics:
+        m = best.plan_comparison.rewritten.metrics
+        metrics = Metrics(
+            total_cost=m.total_cost,
+            io_cost=m.io_cost,
+            cpu_cost=m.cpu_cost,
+            execution_time_ms=m.estimated_time_ms,
+        )
+    else:
         metrics = Metrics(total_cost=0.0, io_cost=0.0, cpu_cost=0.0, execution_time_ms=0.0)
+
+    # ── Recommendation ────────────────────────────────────────────
+    rec_raw = raw_result.get("recommendation") or {}
+    recommendation = Recommendation(
+        best_candidate_id=rec_raw.get("best_candidate_id", ""),
+        best_sql=rec_raw.get("best_sql", ""),
+        best_rules=rec_raw.get("best_rules") or [],
+        improvement_pct=rec_raw.get("improvement_pct", 0.0),
+        semantic_equivalent=rec_raw.get("semantic_equivalent", False),
+        confidence=rec_raw.get("confidence", 0.0),
+    )
 
     return AnalysisResult(
         query_id=query_id,
@@ -170,6 +332,8 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
         original_sql=original_sql,
         rule_recommendations=rule_recommendations,
         metrics=metrics,
+        candidates=candidates,
+        recommendation=recommendation,
     )
 
 
@@ -189,7 +353,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS — allow all origins for local development ───────────────────────────
+# ── CORS ─────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -206,7 +370,7 @@ async def health_check():
     return {"status": "ok", "service": "llm-r2-api", "version": "1.0.0"}
 
 
-# ── Optimize endpoint — fully defensive ───────────────────────────────────────
+# ── Optimize endpoint ──────────────────────────────────────────────────────────
 
 @app.post("/api/v1/optimize", tags=["optimize"])
 async def optimize(request: QueryRequest) -> AnalysisResult:
@@ -217,7 +381,7 @@ async def optimize(request: QueryRequest) -> AnalysisResult:
     - `raw_sql`        — raw SQL query string
     - `active_rules`   — optional list of active rule IDs to apply/enable
 
-    **Response:** AnalysisResult with before/after snippets and metrics.
+    **Response:** full AnalysisResult including candidates list and recommendation.
 
     All errors are caught and returned as a structured 500 response so the
     React frontend can read the exact failure reason.
@@ -228,24 +392,17 @@ async def optimize(request: QueryRequest) -> AnalysisResult:
     query_id = f"q_{uuid.uuid4().hex[:8].upper()}"
 
     try:
-        # ── Run the legacy pipeline in a thread pool (non-blocking) ─────
         pipeline = get_pipeline()
-
         raw_result = await asyncio.to_thread(
             pipeline.run_full,
             request.raw_sql.strip(),
             max_candidates=5,
         )
-
-        # ── Adapt raw pipeline output → Pydantic contract ───────────────
-        result = map_pipeline_result(query_id, request.raw_sql.strip(), raw_result)
-
-        return result
+        return map_pipeline_result(query_id, request.raw_sql.strip(), raw_result)
 
     except Exception as exc:
         tb = traceback.format_exc()
         print(f"[LLM-R2 API] Pipeline error:\n{tb}")
-
         return JSONResponse(
             status_code=500,
             content={

@@ -609,7 +609,7 @@ function DatabaseStatusBadge() {
 /* ─────────────────────────────────────────────────────────────────────────
    CENTER COLUMN — LLM REASONING & RECOMMENDATIONS
 ───────────────────────────────────────────────────────────────────────── */
-function CenterColumn({ data, isAnalyzing, decisions, onApprove, onReject }) {
+function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject, onRetry }) {
   const [ruleFilter, setRuleFilter] = useState("all");
 
   const ruleKeys = [...new Set(
@@ -729,6 +729,31 @@ function CenterColumn({ data, isAnalyzing, decisions, onApprove, onReject }) {
       </div>
 
       {/* Card Feed */}
+      {error && !isAnalyzing && (
+        <div className="flex-shrink-0 mx-6 mt-5 mb-1 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <div className="flex items-start gap-3">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className="shrink-0 mt-0.5">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-semibold text-red-400 mb-1">Analysis Failed</div>
+              <div className="text-[11px] text-red-300/70 break-words">{error}</div>
+            </div>
+            {onRetry && (
+              <button
+                onClick={onRetry}
+                className="shrink-0 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 transition-colors"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <main className="flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-24">
         {isAnalyzing ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -928,9 +953,11 @@ export default function App() {
             <CenterColumn
               data={displayData}
               isAnalyzing={isAnalyzing}
+              error={error}
               decisions={displayDecisions}
               onApprove={handleApprove}
               onReject={handleReject}
+              onRetry={handleAnalyze}
             />
           </div>
 

@@ -1,7 +1,7 @@
 /**
  * mockData.js
  * Realistic mock data matching the exact backend payload structure
- * from my_exp/dss/optimizer_pipeline.py
+ * from my_exp/api/models.py (AnalysisResult).
  * All text in standard professional English.
  */
 
@@ -30,10 +30,9 @@ WHERE b.status = 'ACTIVE'
           "Only a.id, a.order_date, and b.name are needed. " +
           "Removing unnecessary columns reduces memory footprint and network I/O significantly. " +
           "Additionally, since WHERE b.status = 'ACTIVE' is mandatory, " +
-          "the LEFT JOIN is effectively equivalent to an INNER JOIN — the join order can be swapped.",
-        expected_benefit: "Reduced I/O bandwidth and memory footprint",
-        confidence: "High",
-        warning: null,
+          "the LEFT JOIN is effectively equivalent to an INNER JOIN.",
+        before_snippet: "SELECT a.*, b.*",
+        after_snippet: "SELECT a.id, a.order_date, b.name",
       },
       {
         rule: "join_reordering",
@@ -41,22 +40,24 @@ WHERE b.status = 'ACTIVE'
         reason:
           "LEFT JOIN customers b ON a.cust_id = b.id " +
           "WHERE b.status = 'ACTIVE' — filter is mandatory on table b. " +
-          "Pushing the WHERE condition into the JOIN condition and converting LEFT JOIN to INNER JOIN. " +
-          "Placing the smaller table (customers, with filter applied) first reduces intermediate rows exponentially. " +
-          "Swapped table order based on cardinality estimates.",
-        expected_benefit: "Reduced intermediate rows, improved Hash Join performance",
-        confidence: "Medium",
-        warning:
-          "Only equivalent if b.status is NOT NULL for every customer. " +
-          "If there are customers with no orders, the result set will differ.",
+          "Pushing the WHERE condition into the JOIN condition and converting LEFT JOIN to INNER JOIN " +
+          "places the smaller table (customers, with filter applied) first, reducing intermediate rows exponentially.",
+        before_snippet: "FROM orders a LEFT JOIN customers b ON a.cust_id = b.id",
+        after_snippet: "FROM customers b INNER JOIN orders a ON b.id = a.cust_id",
       },
     ],
+  },
+
+  metrics: {
+    total_cost: 820.0,
+    io_cost: 380.0,
+    cpu_cost: 440.0,
+    execution_time_ms: 125.0,
   },
 
   candidates: [
     {
       id: "cand_0",
-      rules_applied: [],
       sql: `SELECT a.*, b.*
 FROM orders a
 LEFT JOIN customers b
@@ -65,6 +66,7 @@ WHERE b.status = 'ACTIVE'
   AND a.order_date >= '2026-01-01';`,
       is_original: true,
       changed: false,
+      rules_applied: [],
       semantic_check: {
         equivalent: true,
         error: null,
@@ -93,10 +95,11 @@ WHERE b.status = 'ACTIVE'
           cpu_improvement_pct: 0,
         },
       },
+      confidence: "High",
+      warning: null,
     },
     {
       id: "cand_1",
-      rules_applied: ["projection_pruning", "join_reordering"],
       sql: `SELECT
   a.id,
   a.order_date,
@@ -108,6 +111,7 @@ WHERE b.status = 'ACTIVE'
   AND a.order_date >= '2026-01-01';`,
       is_original: false,
       changed: true,
+      rules_applied: ["projection_pruning", "join_reordering"],
       semantic_check: {
         equivalent: true,
         error: null,
@@ -134,14 +138,17 @@ WHERE b.status = 'ACTIVE'
         },
         comparison: {
           cost_improvement_pct: -43.4,
-          io_improvement_pct: -55,
-          cpu_improvement_pct: -26,
+          io_improvement_pct: -55.3,
+          cpu_improvement_pct: -26.7,
         },
       },
+      confidence: "High",
+      warning:
+        "Only equivalent if b.status is NOT NULL for every customer. " +
+        "If there are customers with no orders, the result set will differ.",
     },
     {
       id: "cand_2",
-      rules_applied: ["projection_pruning"],
       sql: `SELECT
   a.id,
   a.order_date,
@@ -155,6 +162,7 @@ WHERE b.status = 'ACTIVE'
   AND a.order_date >= '2026-01-01';`,
       is_original: false,
       changed: true,
+      rules_applied: ["projection_pruning"],
       semantic_check: {
         equivalent: true,
         error: null,
@@ -173,16 +181,18 @@ WHERE b.status = 'ACTIVE'
           metrics: {
             total_cost: 1180,
             io_cost: 620,
-            cpu_cost: 520,
+            cpu_cost: 560,
             estimated_time_ms: 210,
           },
         },
         comparison: {
           cost_improvement_pct: -18.6,
-          io_improvement_pct: -27,
-          cpu_improvement_pct: -13,
+          io_improvement_pct: -27.1,
+          cpu_improvement_pct: -6.7,
         },
       },
+      confidence: "Medium",
+      warning: null,
     },
   ],
 
@@ -198,7 +208,6 @@ INNER JOIN orders a
 WHERE b.status = 'ACTIVE'
   AND a.order_date >= '2026-01-01';`,
     best_rules: ["projection_pruning", "join_reordering"],
-    is_original: false,
     improvement_pct: -43.4,
     semantic_equivalent: true,
     confidence: 0.95,

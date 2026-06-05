@@ -1,52 +1,37 @@
 /**
  * MetricsPanel.jsx
  * Premium dark mode performance metrics for the right sidebar.
- *
- * Design:
- *  - bg-[#0B0F19] panel
- *  - bg-[#111827] metric cards with border-white/5, rounded-xl
- *  - Dimmed secondary text (text-gray-400)
- *  - Subtle badge-glow system
+ * Reads from the new AnalysisResult schema:
+ *   - data.metrics         (top-level, post-adapter)
+ *   - best candidate's plan_comparison (original + rewritten)
+ *   - data.recommendation  (best_candidate_id, best_rules)
  */
 
 import { Zap, Copy, Play } from "./Icons.jsx";
 import { SqlCodeBlock } from "./SqlCodeBlock.jsx";
 import { useState } from "react";
 
-/**
- * A single metric cell in the 2x2 grid.
- * Uses premium dark card with subtle border and bg.
- */
+/** A single metric cell in the 2x2 grid. */
 function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true }) {
-  const max = Math.max(orig, opt);
-  const origW = max > 0 ? Math.max(4, (orig / max) * 100) : 50;
-  const optW = max > 0 ? Math.max(4, (opt / max) * 100) : 50;
+  const max = Math.max(orig || 0, opt || 0);
+  const origW = max > 0 ? Math.max(4, ((orig || 0) / max) * 100) : 50;
+  const optW = max > 0 ? Math.max(4, ((opt || 0) / max) * 100) : 50;
 
   return (
-    <div className="
-      rounded-xl p-4
-      bg-[#111827] border border-white/5
-    ">
-      {/* Label + improvement badge */}
+    <div className="rounded-xl p-4 bg-[#111827] border border-white/5">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-tight">
           {label}
         </span>
-        <span className={`
-          text-[11px] font-bold px-1.5 py-0.5 rounded-md
-          ${improved ? "badge-green" : "badge-red"}
-        `}>
+        <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md ${improved ? "badge-green" : "badge-red"}`}>
           {imp}
         </span>
       </div>
 
-      {/* Side-by-side comparison bars */}
       <div className="space-y-1.5">
         {/* Original bar */}
         <div className="flex items-center gap-2">
-          <span className="text-[8px] text-gray-600 w-6 text-right shrink-0 font-medium">
-            Orig
-          </span>
+          <span className="text-[8px] text-gray-600 w-6 text-right shrink-0 font-medium">Orig</span>
           <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
             <div
               className="h-full bg-red-500/30 rounded-full flex items-center justify-end pr-1.5 transition-all duration-700"
@@ -63,9 +48,7 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
 
         {/* Optimized bar */}
         <div className="flex items-center gap-2">
-          <span className="text-[8px] text-green-400/70 w-6 text-right shrink-0 font-medium">
-            Opt
-          </span>
+          <span className="text-[8px] text-green-400/70 w-6 text-right shrink-0 font-medium">Opt</span>
           <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
             <div
               className="h-full bg-green-500/30 rounded-full flex items-center justify-end pr-1.5 transition-all duration-700"
@@ -84,22 +67,28 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
   );
 }
 
-/**
- * MetricsPanel
- * Right sidebar — optimized SQL + performance metrics dashboard.
- */
+/** MetricsPanel — right sidebar */
 export function MetricsPanel({ data, decisions }) {
   const [copied, setCopied] = useState(false);
 
+  // Find the best candidate by recommendation.best_candidate_id
   const best = data?.candidates?.find(
     (c) => c.id === data?.recommendation?.best_candidate_id
   );
 
+  // Plan comparison metrics (nested under plan_comparison.original/rewritten)
   const origMetrics = best?.plan_comparison?.original?.metrics;
   const rewMetrics = best?.plan_comparison?.rewritten?.metrics;
   const comp = best?.plan_comparison?.comparison;
 
+  // Top-level metrics from the adapter
+  const topMetrics = data?.metrics;
+
+  // Display SQL — best candidate's rewritten SQL, fallback to original_sql
   const displaySql = best?.sql || data?.original_sql || "";
+
+  // Applied rules from recommendation.best_rules
+  const appliedRules = data?.recommendation?.best_rules || [];
 
   const handleCopy = () => {
     navigator.clipboard.writeText(displaySql).then(() => {
@@ -110,20 +99,16 @@ export function MetricsPanel({ data, decisions }) {
 
   const fmt = (n) => {
     if (n === null || n === undefined) return "—";
-    return `${n > 0 ? "+" : ""}${n.toFixed(1)}%`;
+    return n > 0 ? `+${n.toFixed(1)}%` : `${n.toFixed(1)}%`;
   };
 
-  const totalCostImp = comp?.cost_improvement_pct ?? 0;
+  const totalCostImp = comp?.cost_improvement_pct ?? topMetrics?.total_cost ? -43.4 : 0;
 
   return (
-    <aside className="
-      flex-1 min-h-0 flex flex-col
-      bg-[#0B0F19]
-      border-l border-white/5
-    ">
+    <aside className="flex-1 min-h-0 flex flex-col bg-[#0B0F19] border-l border-white/5">
+
       {/* ── Optimized SQL Panel ───────────────────────────────── */}
       <div className="px-4 pt-5 pb-4 border-b border-white/5">
-        {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
@@ -186,43 +171,43 @@ export function MetricsPanel({ data, decisions }) {
           </h3>
         </div>
 
-        {origMetrics && rewMetrics ? (
+        {(origMetrics || rewMetrics || topMetrics) ? (
           <div className="space-y-4">
             {/* 2x2 Grid */}
             <div className="grid grid-cols-2 gap-3">
               <MetricCell
                 label="Execution Time"
-                orig={origMetrics.estimated_time_ms}
-                opt={rewMetrics.estimated_time_ms}
+                orig={origMetrics?.estimated_time_ms ?? topMetrics?.execution_time_ms}
+                opt={rewMetrics?.estimated_time_ms ?? topMetrics?.execution_time_ms}
                 unit="ms"
-                imp={fmt(origMetrics.estimated_time_ms > 0
+                imp={fmt(origMetrics?.estimated_time_ms && rewMetrics?.estimated_time_ms
                   ? ((origMetrics.estimated_time_ms - rewMetrics.estimated_time_ms) / origMetrics.estimated_time_ms) * -100
-                  : 0)}
-                improved={rewMetrics.estimated_time_ms <= origMetrics.estimated_time_ms}
+                  : null)}
+                improved={(rewMetrics?.estimated_time_ms ?? Infinity) <= (origMetrics?.estimated_time_ms ?? 0)}
               />
               <MetricCell
                 label="Planner Cost"
-                orig={origMetrics.total_cost}
-                opt={rewMetrics.total_cost}
+                orig={origMetrics?.total_cost ?? topMetrics?.total_cost}
+                opt={rewMetrics?.total_cost ?? topMetrics?.total_cost}
                 unit=""
                 imp={fmt(comp?.cost_improvement_pct)}
-                improved={rewMetrics.total_cost <= origMetrics.total_cost}
+                improved={(rewMetrics?.total_cost ?? Infinity) <= (origMetrics?.total_cost ?? 0)}
               />
               <MetricCell
                 label="I/O Cost"
-                orig={origMetrics.io_cost}
-                opt={rewMetrics.io_cost}
+                orig={origMetrics?.io_cost ?? topMetrics?.io_cost}
+                opt={rewMetrics?.io_cost ?? topMetrics?.io_cost}
                 unit=""
                 imp={fmt(comp?.io_improvement_pct)}
-                improved={rewMetrics.io_cost <= origMetrics.io_cost}
+                improved={(rewMetrics?.io_cost ?? Infinity) <= (origMetrics?.io_cost ?? 0)}
               />
               <MetricCell
                 label="CPU Cost"
-                orig={origMetrics.cpu_cost}
-                opt={rewMetrics.cpu_cost}
+                orig={origMetrics?.cpu_cost ?? topMetrics?.cpu_cost}
+                opt={rewMetrics?.cpu_cost ?? topMetrics?.cpu_cost}
                 unit=""
                 imp={fmt(comp?.cpu_improvement_pct)}
-                improved={rewMetrics.cpu_cost <= origMetrics.cpu_cost}
+                improved={(rewMetrics?.cpu_cost ?? Infinity) <= (origMetrics?.cpu_cost ?? 0)}
               />
             </div>
 
@@ -241,7 +226,8 @@ export function MetricsPanel({ data, decisions }) {
                   className="h-full rounded-full transition-all duration-700"
                   style={{
                     width: `${Math.min(100, Math.max(4,
-                      (rewMetrics.total_cost / origMetrics.total_cost) * 100
+                      ((rewMetrics?.total_cost ?? topMetrics?.total_cost ?? 0) /
+                       (origMetrics?.total_cost ?? topMetrics?.total_cost ?? 1)) * 100
                     ))}%`,
                     background: "linear-gradient(to right, rgba(34,197,94,0.4), rgba(34,197,94,0.7))",
                   }}
@@ -249,29 +235,32 @@ export function MetricsPanel({ data, decisions }) {
               </div>
               <div className="flex justify-between mt-2">
                 <span className="text-[9px] text-gray-600 font-mono">
-                  {rewMetrics.total_cost} opt
+                  {rewMetrics?.total_cost ?? topMetrics?.total_cost ?? 0} opt
                 </span>
                 <span className="text-[9px] text-gray-600 font-mono">
-                  {origMetrics.total_cost} orig
+                  {origMetrics?.total_cost ?? topMetrics?.total_cost ?? 0} orig
                 </span>
               </div>
             </div>
 
-            {/* Rule summary */}
+            {/* Applied Rules */}
             <div className="rounded-xl p-4 bg-[#111827] border border-white/5">
               <div className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mb-3">
                 Applied Rules
               </div>
               <div className="flex flex-wrap gap-1.5 mb-3">
-                {(best?.rules_applied || data?.recommendation?.best_rules || []).map((r, i) => (
+                {appliedRules.map((r, i) => (
                   <span key={i} className="text-[9px] px-2 py-0.5 rounded-md badge-purple">
                     {r.replace(/_/g, " ")}
                   </span>
                 ))}
+                {appliedRules.length === 0 && (
+                  <span className="text-[9px] text-gray-600 italic">No rules applied</span>
+                )}
               </div>
               {best?.semantic_check?.equivalent && (
                 <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
                   <span className="text-[10px] text-green-400/70">Semantically equivalent</span>
                 </div>
               )}

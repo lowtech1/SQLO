@@ -81,6 +81,20 @@ export function ExportReportModal({ data }) {
 
   const handleDownload = () => {
     const sql = best?.sql || data?.recommendation?.best_sql || "";
+
+    if (format === "json") {
+      const payload = JSON.stringify(data, null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `optimization-report-${queryId}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    // Markdown (default)
     const md = `# Optimization Report
 
 **Query ID:** ${queryId}
@@ -269,10 +283,10 @@ ${sql}
                         <div className="text-[11px] text-gray-400 leading-relaxed">
                           {rec?.reason || "Rule applied successfully."}
                         </div>
-                        {rec?.expected_benefit && (
+                        {rec?.reason && (
                           <div className="mt-1.5 text-[10px] text-green-400/70 flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
-                            {rec.expected_benefit}
+                            {rec.reason}
                           </div>
                         )}
                       </div>
@@ -326,7 +340,7 @@ ${sql}
               cursor-pointer
             "
           >
-            <option value="pdf">PDF</option>
+            <option value="json">JSON</option>
             <option value="markdown">Markdown</option>
           </select>
           <button
