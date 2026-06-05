@@ -1,0 +1,292 @@
+/**
+ * MetricsPanel.jsx
+ * Premium dark mode performance metrics for the right sidebar.
+ *
+ * Design:
+ *  - bg-[#0B0F19] panel
+ *  - bg-[#111827] metric cards with border-white/5, rounded-xl
+ *  - Dimmed secondary text (text-gray-400)
+ *  - Subtle badge-glow system
+ */
+
+import { Zap, Copy, Play } from "./Icons.jsx";
+import { SqlCodeBlock } from "./SqlCodeBlock.jsx";
+import { useState } from "react";
+
+/**
+ * A single metric cell in the 2x2 grid.
+ * Uses premium dark card with subtle border and bg.
+ */
+function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true }) {
+  const max = Math.max(orig, opt);
+  const origW = max > 0 ? Math.max(4, (orig / max) * 100) : 50;
+  const optW = max > 0 ? Math.max(4, (opt / max) * 100) : 50;
+
+  return (
+    <div className="
+      rounded-xl p-4
+      bg-[#111827] border border-white/5
+    ">
+      {/* Label + improvement badge */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-tight">
+          {label}
+        </span>
+        <span className={`
+          text-[11px] font-bold px-1.5 py-0.5 rounded-md
+          ${improved ? "badge-green" : "badge-red"}
+        `}>
+          {imp}
+        </span>
+      </div>
+
+      {/* Side-by-side comparison bars */}
+      <div className="space-y-1.5">
+        {/* Original bar */}
+        <div className="flex items-center gap-2">
+          <span className="text-[8px] text-gray-600 w-6 text-right shrink-0 font-medium">
+            Orig
+          </span>
+          <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-red-500/30 rounded-full flex items-center justify-end pr-1.5 transition-all duration-700"
+              style={{ width: `${origW}%` }}
+            >
+              {origW > 22 && (
+                <span className="text-[8px] font-mono font-bold text-gray-400 leading-none">
+                  {orig}{unit}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Optimized bar */}
+        <div className="flex items-center gap-2">
+          <span className="text-[8px] text-green-400/70 w-6 text-right shrink-0 font-medium">
+            Opt
+          </span>
+          <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500/30 rounded-full flex items-center justify-end pr-1.5 transition-all duration-700"
+              style={{ width: `${optW}%` }}
+            >
+              {optW > 22 && (
+                <span className="text-[8px] font-mono font-bold text-green-400/80 leading-none">
+                  {opt}{unit}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * MetricsPanel
+ * Right sidebar — optimized SQL + performance metrics dashboard.
+ */
+export function MetricsPanel({ data, decisions }) {
+  const [copied, setCopied] = useState(false);
+
+  const best = data?.candidates?.find(
+    (c) => c.id === data?.recommendation?.best_candidate_id
+  );
+
+  const origMetrics = best?.plan_comparison?.original?.metrics;
+  const rewMetrics = best?.plan_comparison?.rewritten?.metrics;
+  const comp = best?.plan_comparison?.comparison;
+
+  const displaySql = best?.sql || data?.original_sql || "";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(displaySql).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const fmt = (n) => {
+    if (n === null || n === undefined) return "—";
+    return `${n > 0 ? "+" : ""}${n.toFixed(1)}%`;
+  };
+
+  const totalCostImp = comp?.cost_improvement_pct ?? 0;
+
+  return (
+    <aside className="
+      flex-1 min-h-0 flex flex-col
+      bg-[#0B0F19]
+      border-l border-white/5
+    ">
+      {/* ── Optimized SQL Panel ───────────────────────────────── */}
+      <div className="px-4 pt-5 pb-4 border-b border-white/5">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
+              stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="7.5" width="10" height="7" rx="1.5" />
+              <path d="M5.5 7.5 V5 a2.5 2.5 0 0 1 5 0 V7.5" />
+            </svg>
+            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+              Final Optimized SQL
+            </h3>
+          </div>
+        </div>
+
+        {/* SQL block */}
+        <div className="rounded-xl overflow-hidden border border-white/5 mb-3">
+          <div className="flex items-center justify-between px-3 py-2 bg-[#0D1117] border-b border-white/5">
+            <span className="text-[9px] font-mono text-gray-600">optimized.sql</span>
+            <span className="text-[9px] text-gray-600">Read-only</span>
+          </div>
+          <div className="max-h-[280px] overflow-y-auto">
+            <SqlCodeBlock code={displaySql} />
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleCopy}
+            className={`
+              flex-1 flex items-center justify-center gap-2
+              px-3 py-2.5 rounded-xl text-[12px] font-medium
+              transition-all duration-200
+              ${copied
+                ? "bg-green-500 text-white border border-green-500 shadow-lg shadow-green-500/20"
+                : "bg-[#111827] border border-white/10 text-gray-300 hover:bg-[#1a2234] hover:text-white hover:border-white/20"
+              }
+            `}
+          >
+            <Copy size={13} />
+            {copied ? "Copied!" : "Copy SQL"}
+          </button>
+          <button className="
+            flex-1 flex items-center justify-center gap-2
+            px-3 py-2.5 rounded-xl text-[12px] font-medium
+            bg-green-500 hover:bg-green-400 text-white
+            transition-all shadow-lg shadow-green-500/20
+          ">
+            <Play size={13} />
+            Execute
+          </button>
+        </div>
+      </div>
+
+      {/* ── Metrics Dashboard ─────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Zap size={13} className="text-purple-400" />
+          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+            Performance Metrics
+          </h3>
+        </div>
+
+        {origMetrics && rewMetrics ? (
+          <div className="space-y-4">
+            {/* 2x2 Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <MetricCell
+                label="Execution Time"
+                orig={origMetrics.estimated_time_ms}
+                opt={rewMetrics.estimated_time_ms}
+                unit="ms"
+                imp={fmt(origMetrics.estimated_time_ms > 0
+                  ? ((origMetrics.estimated_time_ms - rewMetrics.estimated_time_ms) / origMetrics.estimated_time_ms) * -100
+                  : 0)}
+                improved={rewMetrics.estimated_time_ms <= origMetrics.estimated_time_ms}
+              />
+              <MetricCell
+                label="Planner Cost"
+                orig={origMetrics.total_cost}
+                opt={rewMetrics.total_cost}
+                unit=""
+                imp={fmt(comp?.cost_improvement_pct)}
+                improved={rewMetrics.total_cost <= origMetrics.total_cost}
+              />
+              <MetricCell
+                label="I/O Cost"
+                orig={origMetrics.io_cost}
+                opt={rewMetrics.io_cost}
+                unit=""
+                imp={fmt(comp?.io_improvement_pct)}
+                improved={rewMetrics.io_cost <= origMetrics.io_cost}
+              />
+              <MetricCell
+                label="CPU Cost"
+                orig={origMetrics.cpu_cost}
+                opt={rewMetrics.cpu_cost}
+                unit=""
+                imp={fmt(comp?.cpu_improvement_pct)}
+                improved={rewMetrics.cpu_cost <= origMetrics.cpu_cost}
+              />
+            </div>
+
+            {/* Summary bar */}
+            <div className="rounded-xl p-4 bg-[#111827] border border-white/5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
+                  Total Improvement
+                </span>
+                <span className="text-[16px] font-bold font-mono text-green-400">
+                  {fmt(totalCostImp * -1)}
+                </span>
+              </div>
+              <div className="h-2.5 bg-[#1F2937] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(100, Math.max(4,
+                      (rewMetrics.total_cost / origMetrics.total_cost) * 100
+                    ))}%`,
+                    background: "linear-gradient(to right, rgba(34,197,94,0.4), rgba(34,197,94,0.7))",
+                  }}
+                />
+              </div>
+              <div className="flex justify-between mt-2">
+                <span className="text-[9px] text-gray-600 font-mono">
+                  {rewMetrics.total_cost} opt
+                </span>
+                <span className="text-[9px] text-gray-600 font-mono">
+                  {origMetrics.total_cost} orig
+                </span>
+              </div>
+            </div>
+
+            {/* Rule summary */}
+            <div className="rounded-xl p-4 bg-[#111827] border border-white/5">
+              <div className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mb-3">
+                Applied Rules
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {(best?.rules_applied || data?.recommendation?.best_rules || []).map((r, i) => (
+                  <span key={i} className="text-[9px] px-2 py-0.5 rounded-md badge-purple">
+                    {r.replace(/_/g, " ")}
+                  </span>
+                ))}
+              </div>
+              {best?.semantic_check?.equivalent && (
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                  <span className="text-[10px] text-green-400/70">Semantically equivalent</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Zap size={28} className="text-gray-700 mb-3" />
+            <p className="text-[12px] text-gray-600 mb-1">No metrics available.</p>
+            <p className="text-[11px] text-gray-700">Run Analyze Query first.</p>
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+export default MetricsPanel;
