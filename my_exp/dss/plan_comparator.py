@@ -14,6 +14,11 @@ from typing import Optional, Tuple
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
+from dotenv import load_dotenv
+# Load .env so DB credentials are available even when called via asyncio.to_thread
+_root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv(_root_env)
+
 
 def get_db_connection(dbname: str = None):
     """Create PostgreSQL connection."""
@@ -71,7 +76,7 @@ def get_explain_analyze(sql: str, conn, format: str = "json") -> Tuple[Optional[
     """Get EXPLAIN ANALYZE output for a SQL query."""
     try:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(f"EXPLAIN (ANALYZE, FORMAT {format}, COSTS, TIMING, BUFFERS)")
+        cur.execute(f"EXPLAIN (ANALYZE, FORMAT {format}, COSTS, TIMING, BUFFERS) {sql}")
         raw = cur.fetchone()
         cur.close()
 

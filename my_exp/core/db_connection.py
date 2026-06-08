@@ -108,7 +108,7 @@ def execute_query(
             "has_more": total > limit,
             "row_count_displayed": min(total, limit),
         }
-    except psycopg2.errors.StatementTimeout:
+    except psycopg2.errors.lookup('57000'):  # StatementTimeout / QueryCanceled
         return {"success": False, "error": "Query timeout"}
     except psycopg2.errors.SyntaxError as e:
         return {"success": False, "error": f"Syntax error: {e}"}

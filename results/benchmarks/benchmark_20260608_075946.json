@@ -1,0 +1,828 @@
+{
+  "metadata": {
+    "timestamp": "2026-06-08T07:59:46.267506",
+    "use_llm": false,
+    "max_candidates": 5,
+    "datasets": [
+      "TPC-H",
+      "DSB",
+      "JOB"
+    ],
+    "total_queries": 11
+  },
+  "dataset_results": {
+    "TPC-H": {
+      "queries": [
+        {
+          "query_id": "TPCH-Q1",
+          "description": "TPC-H Q1: Pricing Summary Report",
+          "original_sql": "SELECT l_returnflag, l_linestatus, SUM(l_quantity) AS sum_qty,\n        SUM(l_extendedprice) AS sum_base_price, SUM(l_extendedprice*(1-l_discount)) AS sum_disc_price,\n        SUM(l_extendedprice*(1-l_discount)*(1+l_tax)) AS sum_charge, AVG(l_quantity) AS avg_qty,\n        AVG(l_extendedprice) AS avg_price, AVG(l_discount) AS avg_disc, COUNT(*) AS count_order\n        FROM lineitem WHERE l_shipdate <= DATE '1998-12-01' - INTERVAL '90 days'\n        GROUP BY l_returnflag, l_linestatus ORDER BY l_returnflag, l_linestatus",
+          "parsing_success": true,
+          "complexity": {
+            "score": 4,
+            "level": "\u0110\u01a1n gi\u1ea3n",
+            "level_en": "Simple",
+            "factors": [
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 1,
+            "joins": 0,
+            "subqueries": 0,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "aggregation_pushdown",
+            "projection_pruning"
+          ],
+          "recommended_rules": [],
+          "rule_recall": 0.0,
+          "rule_precision": null,
+          "num_candidates": 2,
+          "num_rewrite_candidates": 1,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "aggregation_pushdown"
+              ],
+              "changed": true
+            }
+          ]
+        },
+        {
+          "query_id": "TPCH-Q3",
+          "description": "TPC-H Q3: Shipping Priority",
+          "original_sql": "SELECT l_orderkey, SUM(l_extendedprice*(1-l_discount)) AS revenue, o_orderdate, o_shippriority\n        FROM customer c JOIN orders o ON c.c_custkey = o.o_custkey\n        JOIN lineitem l ON o.o_orderkey = l.l_orderkey\n        WHERE c.c_mktsegment = 'AUTOMOBILE' AND o.o_orderdate < DATE '1995-03-15' AND l.l_shipdate > DATE '1995-03-15'\n        GROUP BY l_orderkey, o_orderdate, o_shippriority ORDER BY revenue DESC, o_orderdate LIMIT 10",
+          "parsing_success": true,
+          "complexity": {
+            "score": 10,
+            "level": "Trung b\u00ecnh",
+            "level_en": "Medium",
+            "factors": [
+              "2 joins",
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 3,
+            "joins": 2,
+            "subqueries": 0,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "recommended_rules": [
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "rule_recall": 1.0,
+          "rule_precision": 1.0,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "limit_pushdown"
+              ],
+              "changed": true
+            }
+          ]
+        },
+        {
+          "query_id": "TPCH-Q5",
+          "description": "TPC-H Q5: Local Supplier Volume",
+          "original_sql": "SELECT n_name, SUM(l_extendedprice*(1-l_discount)) AS revenue\n        FROM customer c JOIN orders o ON c.c_custkey = o.o_custkey\n        JOIN lineitem l ON o.o_orderkey = l.l_orderkey JOIN supplier s ON l.l_suppkey = s.s_suppkey\n        JOIN nation n ON c.c_nationkey = n.n_nationkey JOIN region r ON n.n_regionkey = r.r_regionkey\n        WHERE r.r_name = 'ASIA' AND o.o_orderdate >= DATE '1994-01-01' AND o.o_orderdate < DATE '1995-01-01'\n        GROUP BY n_name ORDER BY revenue DESC",
+          "parsing_success": true,
+          "complexity": {
+            "score": 18,
+            "level": "Ph\u1ee9c t\u1ea1p",
+            "level_en": "Complex",
+            "factors": [
+              "6 tables",
+              "5 joins",
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 6,
+            "joins": 5,
+            "subqueries": 0,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "projection_pruning",
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "recommended_rules": [
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "rule_recall": 0.6666666666666666,
+          "rule_precision": 1.0,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "aggregation_pushdown"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            }
+          ]
+        },
+        {
+          "query_id": "TPCH-Q10",
+          "description": "TPC-H Q10: Returned Item Reporting",
+          "original_sql": "SELECT c_custkey, c_name, SUM(l_extendedprice*(1-l_discount)) AS revenue, c_acctbal,\n        n_name, c_address, c_phone, c_comment\n        FROM customer c JOIN nation n ON c.c_nationkey = n.n_nationkey\n        JOIN orders o ON c.c_custkey = o.o_custkey JOIN lineitem l ON o.o_orderkey = l.l_orderkey\n        WHERE o.o_orderdate >= DATE '1993-10-01' AND o.o_orderdate < DATE '1994-01-01'\n        AND l.l_returnflag = 'R' GROUP BY c_custkey, c_name, c_acctbal, n_name, c_address, c_phone, c_comment\n        ORDER BY revenue DESC LIMIT 20",
+          "parsing_success": true,
+          "complexity": {
+            "score": 13,
+            "level": "Ph\u1ee9c t\u1ea1p",
+            "level_en": "Complex",
+            "factors": [
+              "4 tables",
+              "3 joins",
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 4,
+            "joins": 3,
+            "subqueries": 0,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "projection_pruning",
+            "filter_into_join"
+          ],
+          "recommended_rules": [
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "rule_recall": 0.5,
+          "rule_precision": 0.5,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "limit_pushdown"
+              ],
+              "changed": true
+            }
+          ]
+        },
+        {
+          "query_id": "TPCH-Q17",
+          "description": "TPC-H Q17: Small-Quantity-Order Revenue",
+          "original_sql": "SELECT SUM(l_extendedprice) / 7.0 AS avg_yearly\n        FROM lineitem l2 JOIN part p ON l2.l_partkey = p.p_partkey\n        WHERE p.p_brand = 'Brand#23' AND p.p_container = 'MED BOX'\n        AND l2.l_quantity < (SELECT 0.2 * AVG(l_quantity) FROM lineitem WHERE l_partkey = p.p_partkey)",
+          "parsing_success": true,
+          "complexity": {
+            "score": 8,
+            "level": "Trung b\u00ecnh",
+            "level_en": "Medium",
+            "factors": [
+              "1 joins",
+              "1 subqueries",
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 3,
+            "joins": 1,
+            "subqueries": 1,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "subquery_unnesting",
+            "predicate_pushdown"
+          ],
+          "recommended_rules": [
+            "filter_into_join"
+          ],
+          "rule_recall": 0.0,
+          "rule_precision": 0.0,
+          "num_candidates": 4,
+          "num_rewrite_candidates": 3,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "redundant_join_elimination",
+                "filter_into_join"
+              ],
+              "changed": true
+            }
+          ]
+        }
+      ],
+      "stats": {
+        "total": 5,
+        "parsed": 5,
+        "rule_accuracies": {},
+        "avg_candidates": 4.2,
+        "avg_rules_detected": 1.4,
+        "avg_rule_recall": 0.4333333333333333,
+        "avg_rule_precision": 0.625,
+        "parse_rate": 1.0
+      }
+    },
+    "DSB": {
+      "queries": [
+        {
+          "query_id": "DSB-Q1",
+          "description": "DSB: Catalog Sales Summary",
+          "original_sql": "SELECT d_weeknuminyear, d_year, d_moy, SUM(cs_net_paid_inc_ship_tax) AS total_net_paid\n        FROM catalog_sales cs JOIN date_dim d ON cs.cs_sold_date_sk = d.d_date_sk\n        WHERE d.d_date BETWEEN '1999-01-01' AND '1999-12-31'\n        GROUP BY d_weeknuminyear, d_year, d_moy\n        ORDER BY d_year, d_weeknuminyear, d_moy",
+          "parsing_success": true,
+          "complexity": {
+            "score": 7,
+            "level": "\u0110\u01a1n gi\u1ea3n",
+            "level_en": "Simple",
+            "factors": [
+              "1 joins",
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 2,
+            "joins": 1,
+            "subqueries": 0,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "filter_into_join"
+          ],
+          "recommended_rules": [
+            "filter_into_join"
+          ],
+          "rule_recall": 1.0,
+          "rule_precision": 1.0,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "aggregation_pushdown"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "aggregation_pushdown"
+              ],
+              "changed": true
+            }
+          ]
+        },
+        {
+          "query_id": "DSB-Q2",
+          "description": "DSB: Customer Purchase Summary",
+          "original_sql": "SELECT c_customer_id, c_first_name, c_last_name, SUM(ss_quantity) AS total_qty\n        FROM store_sales ss JOIN customer c ON ss.ss_customer_sk = c.c_customer_sk\n        WHERE ss.ss_sold_date_sk BETWEEN 2451182 AND 2451547\n        GROUP BY c_customer_id, c_first_name, c_last_name\n        ORDER BY total_qty DESC LIMIT 100",
+          "parsing_success": true,
+          "complexity": {
+            "score": 7,
+            "level": "\u0110\u01a1n gi\u1ea3n",
+            "level_en": "Simple",
+            "factors": [
+              "1 joins",
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 2,
+            "joins": 1,
+            "subqueries": 0,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "recommended_rules": [
+            "filter_into_join"
+          ],
+          "rule_recall": 0.5,
+          "rule_precision": 1.0,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "aggregation_pushdown"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "limit_pushdown"
+              ],
+              "changed": true
+            }
+          ]
+        }
+      ],
+      "stats": {
+        "total": 3,
+        "parsed": 2,
+        "rule_accuracies": {},
+        "avg_candidates": 5.0,
+        "avg_rules_detected": 1.0,
+        "avg_rule_recall": 0.75,
+        "avg_rule_precision": 1.0,
+        "parse_rate": 0.6666666666666666
+      }
+    },
+    "JOB": {
+      "queries": [
+        {
+          "query_id": "JOB-Q1",
+          "description": "JOB: Spielberg Movies",
+          "original_sql": "SELECT MIN(title.year) AS first_movie_year, MAX(title.year) AS last_movie_year,\n        MIN(info.info) AS movie_info, COUNT(DISTINCT title.id) AS num_movies\n        FROM title JOIN movie_info_idx AS info ON title.id = info.movie_id\n        JOIN cast_info AS ci ON title.id = ci.movie_id\n        WHERE info.info_type_id = 100 AND title.kind_id <= 2\n        AND ci.person_id IN (SELECT id FROM name WHERE name LIKE '%Spielberg%')",
+          "parsing_success": true,
+          "complexity": {
+            "score": 16,
+            "level": "Ph\u1ee9c t\u1ea1p",
+            "level_en": "Complex",
+            "factors": [
+              "4 tables",
+              "2 joins",
+              "1 subqueries",
+              "correlated subquery",
+              "aggregation"
+            ]
+          },
+          "features": {
+            "tables": 4,
+            "joins": 2,
+            "subqueries": 1,
+            "has_aggregation": true
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "predicate_pushdown",
+            "projection_pruning"
+          ],
+          "recommended_rules": [
+            "subquery_unnesting",
+            "predicate_pushdown",
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "rule_recall": 0.5,
+          "rule_precision": 0.25,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "subquery_unnesting"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            }
+          ]
+        },
+        {
+          "query_id": "JOB-Q2",
+          "description": "JOB: Company Productions",
+          "original_sql": "SELECT title.id, title.title, title.production_year\n        FROM title JOIN movie_companies AS mc ON title.id = mc.movie_id\n        JOIN company_name AS cn ON mc.company_id = cn.id\n        WHERE cn.country_code != '[pl]' AND mc.note LIKE '%(200%)%'\n        ORDER BY title.production_year, title.title LIMIT 100",
+          "parsing_success": true,
+          "complexity": {
+            "score": 8,
+            "level": "Trung b\u00ecnh",
+            "level_en": "Medium",
+            "factors": [
+              "2 joins"
+            ]
+          },
+          "features": {
+            "tables": 3,
+            "joins": 2,
+            "subqueries": 0,
+            "has_aggregation": false
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "projection_pruning",
+            "filter_into_join"
+          ],
+          "recommended_rules": [
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "rule_recall": 0.5,
+          "rule_precision": 0.5,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            }
+          ]
+        },
+        {
+          "query_id": "JOB-Q3",
+          "description": "JOB: Actor Roles",
+          "original_sql": "SELECT t.title, ct.kind, ch.name, ch.id AS char_id, n.name AS actor_name, n.id AS actor_id,\n        t.id AS movie_id\n        FROM char_name AS ch JOIN cast_info AS ci ON ch.id = ci.person_role_id\n        JOIN name AS n ON ci.person_id = n.id\n        JOIN title AS t ON ci.movie_id = t.id\n        JOIN company_type AS ct ON ci.movie_companies IS NOT NULL\n        WHERE t.production_year > 2005 AND n.gender = 'm'\n        ORDER BY t.production_year, char_id LIMIT 50",
+          "parsing_success": true,
+          "complexity": {
+            "score": 14,
+            "level": "Ph\u1ee9c t\u1ea1p",
+            "level_en": "Complex",
+            "factors": [
+              "5 tables",
+              "4 joins"
+            ]
+          },
+          "features": {
+            "tables": 5,
+            "joins": 4,
+            "subqueries": 0,
+            "has_aggregation": false
+          },
+          "method": "pattern",
+          "expected_rules": [
+            "join_reordering",
+            "projection_pruning"
+          ],
+          "recommended_rules": [
+            "join_reordering",
+            "filter_into_join"
+          ],
+          "rule_recall": 0.5,
+          "rule_precision": 0.5,
+          "num_candidates": 5,
+          "num_rewrite_candidates": 4,
+          "candidates": [
+            {
+              "id": 0,
+              "rules": [],
+              "changed": false
+            },
+            {
+              "id": 1,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            },
+            {
+              "id": 2,
+              "rules": [
+                "redundant_join_elimination"
+              ],
+              "changed": true
+            },
+            {
+              "id": 3,
+              "rules": [
+                "filter_into_join"
+              ],
+              "changed": true
+            },
+            {
+              "id": 4,
+              "rules": [
+                "join_reordering"
+              ],
+              "changed": true
+            }
+          ]
+        }
+      ],
+      "stats": {
+        "total": 3,
+        "parsed": 3,
+        "rule_accuracies": {},
+        "avg_candidates": 5.0,
+        "avg_rules_detected": 2.6666666666666665,
+        "avg_rule_recall": 0.5,
+        "avg_rule_precision": 0.4166666666666667,
+        "parse_rate": 1.0
+      }
+    }
+  },
+  "rule_stats": {
+    "predicate_pushdown": {
+      "times_applied": 1,
+      "times_correct": 1,
+      "queries_eligible": 2,
+      "rewrite_changed": 0
+    },
+    "projection_pruning": {
+      "times_applied": 0,
+      "times_correct": 0,
+      "queries_eligible": 6,
+      "rewrite_changed": 0
+    },
+    "join_reordering": {
+      "times_applied": 6,
+      "times_correct": 3,
+      "queries_eligible": 4,
+      "rewrite_changed": 8
+    },
+    "subquery_unnesting": {
+      "times_applied": 1,
+      "times_correct": 0,
+      "queries_eligible": 1,
+      "rewrite_changed": 1
+    },
+    "aggregation_pushdown": {
+      "times_applied": 0,
+      "times_correct": 0,
+      "queries_eligible": 1,
+      "rewrite_changed": 5
+    },
+    "redundant_join_elimination": {
+      "times_applied": 0,
+      "times_correct": 0,
+      "queries_eligible": 0,
+      "rewrite_changed": 10
+    },
+    "filter_into_join": {
+      "times_applied": 9,
+      "times_correct": 6,
+      "queries_eligible": 6,
+      "rewrite_changed": 10
+    },
+    "limit_pushdown": {
+      "times_applied": 0,
+      "times_correct": 0,
+      "queries_eligible": 0,
+      "rewrite_changed": 3
+    }
+  },
+  "summary": {
+    "avg_rule_recall": 0.5166666666666666,
+    "avg_rule_precision": 0.6388888888888888,
+    "total_queries": 11,
+    "total_parsed": 10,
+    "total_candidates_generated": 46,
+    "total_rewrite_candidates": 36,
+    "rule_stats": {
+      "predicate_pushdown": {
+        "times_applied": 1,
+        "times_correct": 1,
+        "queries_eligible": 2,
+        "rewrite_changed": 0
+      },
+      "projection_pruning": {
+        "times_applied": 0,
+        "times_correct": 0,
+        "queries_eligible": 6,
+        "rewrite_changed": 0
+      },
+      "join_reordering": {
+        "times_applied": 6,
+        "times_correct": 3,
+        "queries_eligible": 4,
+        "rewrite_changed": 8
+      },
+      "subquery_unnesting": {
+        "times_applied": 1,
+        "times_correct": 0,
+        "queries_eligible": 1,
+        "rewrite_changed": 1
+      },
+      "aggregation_pushdown": {
+        "times_applied": 0,
+        "times_correct": 0,
+        "queries_eligible": 1,
+        "rewrite_changed": 5
+      },
+      "redundant_join_elimination": {
+        "times_applied": 0,
+        "times_correct": 0,
+        "queries_eligible": 0,
+        "rewrite_changed": 10
+      },
+      "filter_into_join": {
+        "times_applied": 9,
+        "times_correct": 6,
+        "queries_eligible": 6,
+        "rewrite_changed": 10
+      },
+      "limit_pushdown": {
+        "times_applied": 0,
+        "times_correct": 0,
+        "queries_eligible": 0,
+        "rewrite_changed": 3
+      }
+    }
+  }
+}

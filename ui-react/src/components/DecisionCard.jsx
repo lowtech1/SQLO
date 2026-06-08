@@ -72,7 +72,7 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
     : "badge-yellow";
 
   const improvementPct = candidate.plan_comparison?.comparison?.cost_improvement_pct ?? 0;
-  const hasImprovement = improvementPct < 0;
+  const hasImprovement = improvementPct > 0; // positive = opt is better (improved)
 
   return (
     <article

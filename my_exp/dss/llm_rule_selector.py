@@ -2,23 +2,22 @@
 my_exp.dss.llm_rule_selector
 =============================
 LLM-powered rule recommendation for SQL optimization.
-Uses Claude Opus 4.6 to analyze SQL and recommend optimization rules.
+Priority: Groq API → Anthropic API → Pattern scoring fallback.
 """
 
 import os
 import json
 import sys
+import requests
 from typing import Optional
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-try:
-    from anthropic import Anthropic
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
+from dotenv import load_dotenv
+_root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv(_root_env)
 
-from my_exp.core.rules import RULE_METADATA, get_all_rules
+from my_exp.core.rules import get_all_rules
 from my_exp.core.sql_analyzer import SQLFeatureExtractor, RuleApplicabilityScorer
 
 
@@ -92,30 +91,58 @@ SQL: {sql}
     return prompt
 
 
-def call_llm(prompt: str, model: str = "claude-opus-4-5-20250514") -> Optional[str]:
-    """Call LLM API to get rule recommendations."""
-    if not ANTHROPIC_AVAILABLE:
-        return None
+def call_llm(prompt: str) -> Optional[str]:
+    """Call LLM API — Groq first, then Anthropic, then None (pattern fallback)."""
+    # ── Priority 1: Groq API ───────────────────────────────────────────────
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        try:
+            resp = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 2048,
+                    "temperature": 0.1,
+                },
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data["choices"][0]["message"]["content"]
+            else:
+                print(f"[Groq] API error {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            print(f"[Groq] Request failed: {e}")
 
-    api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY")
-    if not api_key:
-        return None
+    # ── Priority 2: Gemini via requests ──────────────────────────────────
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            resp = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.1},
+                },
+                timeout=30,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                print(f"[Gemini] API error {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            print(f"[Gemini] Request failed: {e}")
 
-    try:
-        client = Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model=model,
-            max_tokens=2048,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
-        return response.content[0].text
-    except Exception as e:
-        return f"{{\"error\": \"{str(e)}\"}}"
+    # ── Priority 4: No LLM available — use pattern scoring only ───────────
+    print("[LLM] No LLM API key available — using pattern-based scoring")
+    return None
 
 
 def parse_llm_response(response: str) -> dict:
@@ -154,8 +181,10 @@ class LLMRuleSelector:
     Falls back to pattern-based selection if LLM is unavailable.
     """
 
-    def __init__(self, use_llm: bool = True, model: str = "claude-opus-4-5-20250514"):
-        self.use_llm = use_llm and ANTHROPIC_AVAILABLE
+    def __init__(self, use_llm: bool = True, model: str = "llama-3.3-70b-versatile"):
+        # LLM available if any API key is set (Groq, Gemini, or Anthropic)
+        has_llm_key = bool(os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"))
+        self.use_llm = use_llm and has_llm_key
         self.model = model
         self.extractor = SQLFeatureExtractor()
         self.scorer = RuleApplicabilityScorer()
@@ -186,7 +215,7 @@ class LLMRuleSelector:
 
         # Try LLM
         prompt = build_llm_prompt(sql, features, applicable_rules)
-        response = call_llm(prompt, self.model)
+        response = call_llm(prompt)
         parsed = parse_llm_response(response)
 
         if parsed and "error" not in parsed and "recommendations" in parsed:

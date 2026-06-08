@@ -15,18 +15,34 @@ import { mockAnalysisResult } from "../data/mockData.js";
 export const useOptimizationStore = create((set, get) => ({
   /* ── Database connection ─────────────────────────────── */
   dbStatus: "disconnected", // 'disconnected' | 'connecting' | 'connected'
+  dbError: null,
+  schema: null, // live schema from backend
+  dbConnParams: null,
+
   connectDB: async (params) => {
-    set({ dbStatus: "connecting" });
+    set({ dbStatus: "connecting", dbError: null });
     try {
-      // Simulate connection delay — replace with real DB connection logic
-      await new Promise((r) => setTimeout(r, 1500));
-      set({ dbStatus: "connected", dbConnParams: params });
-    } catch {
-      set({ dbStatus: "disconnected" });
+      // Call backend to test connection and fetch schema in one step
+      const resp = await fetch("/api/v1/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data.detail || `Connection failed (${resp.status})`);
+      }
+      set({
+        dbStatus: "connected",
+        dbConnParams: params,
+        schema: data.schema || null,
+      });
+    } catch (err) {
+      set({ dbStatus: "disconnected", dbError: err.message });
     }
   },
-  disconnectDB: () => set({ dbStatus: "disconnected", dbConnParams: null }),
-  dbConnParams: null,
+
+  disconnectDB: () => set({ dbStatus: "disconnected", dbConnParams: null, schema: null, dbError: null }),
 
   /* ── Export modal ─────────────────────────────────────── */
   isExportModalOpen: false,
@@ -41,8 +57,13 @@ export const useOptimizationStore = create((set, get) => ({
   /* ── Decisions (candidateId → approved | rejected | pending) ── */
   decisions: {},
 
-  /* ── Analyze query ──────────────────────────────────── */
+  /* ── Analyze query — requires DB connection ─────────── */
   analyzeQuery: async (sql, activeRules) => {
+    const { dbStatus } = get();
+    if (dbStatus !== "connected") {
+      set({ error: "Connect to a database first before analyzing queries." });
+      return;
+    }
     set({ isAnalyzing: true, error: null, data: null });
 
     try {
@@ -58,7 +79,27 @@ export const useOptimizationStore = create((set, get) => ({
         let serverMsg = `Server error: ${response.status}`;
         try {
           const errBody = await response.json();
-          if (errBody?.detail) serverMsg = errBody.detail;
+          if (errBody?.detail) {
+            const d = errBody.detail;
+            // detail can be: string, Pydantic error object, or array of errors
+            if (typeof d === 'string') {
+              serverMsg = d;
+            } else if (Array.isArray(d)) {
+              // Array of Pydantic errors: extract human-readable messages
+              serverMsg = d.map(e => typeof e === 'string' ? e : e?.msg || e?.type || JSON.stringify(e)).join('; ');
+            } else {
+              serverMsg = d?.msg || d?.detail || JSON.stringify(d);
+            }
+          }
+          // Also check for top-level error fields
+          if (!serverMsg || serverMsg.startsWith('Server error:')) {
+            if (errBody?.error) serverMsg = typeof errBody.error === 'string' ? errBody.error : errBody.error?.message || JSON.stringify(errBody.error);
+            if (errBody?.traceback) {
+              // Truncate traceback to last meaningful line
+              const lines = errBody.traceback.trim().split('\n').filter(l => l.trim());
+              serverMsg = lines[lines.length - 1]?.trim() || serverMsg;
+            }
+          }
         } catch (_) {}
         throw new Error(serverMsg);
       }

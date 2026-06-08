@@ -34,27 +34,34 @@ const MOCK_SCHEMA = {
   postgres_15: {
     tables: [
       {
-        name: "orders",
+        name: "customer",
         type: "table",
         expanded: true,
         columns: [
-          { name: "id", type: "PK", dataType: "int", isPK: true, isFK: false },
-          { name: "cust_id", type: "FK", dataType: "int", isPK: false, isFK: true },
-          { name: "order_date", type: "", dataType: "date", isPK: false, isFK: false },
-          { name: "status", type: "", dataType: "varchar", isPK: false, isFK: false },
-          { name: "total_price", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "c_custkey", type: "PK", dataType: "int", isPK: true, isFK: false },
+          { name: "c_name", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "c_address", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "c_nationkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "c_phone", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "c_acctbal", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "c_mktsegment", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "c_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
         ],
       },
       {
-        name: "customers",
+        name: "orders",
         type: "table",
         expanded: false,
         columns: [
-          { name: "id", type: "PK", dataType: "int", isPK: true, isFK: false },
-          { name: "name", type: "", dataType: "varchar", isPK: false, isFK: false },
-          { name: "status", type: "", dataType: "varchar", isPK: false, isFK: false },
-          { name: "mktsegment", type: "", dataType: "varchar", isPK: false, isFK: false },
-          { name: "nation", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "o_orderkey", type: "PK", dataType: "int", isPK: true, isFK: false },
+          { name: "o_custkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "o_orderstatus", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "o_totalprice", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "o_orderdate", type: "", dataType: "date", isPK: false, isFK: false },
+          { name: "o_orderpriority", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "o_clerk", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "o_shippriority", type: "", dataType: "int", isPK: false, isFK: false },
+          { name: "o_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
         ],
       },
       {
@@ -62,11 +69,22 @@ const MOCK_SCHEMA = {
         type: "table",
         expanded: false,
         columns: [
-          { name: "id", type: "PK", dataType: "int", isPK: true, isFK: false },
-          { name: "order_id", type: "FK", dataType: "int", isPK: false, isFK: true },
-          { name: "part_id", type: "FK", dataType: "int", isPK: false, isFK: true },
-          { name: "quantity", type: "", dataType: "int", isPK: false, isFK: false },
-          { name: "unit_price", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "l_orderkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "l_partkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "l_suppkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "l_linenumber", type: "PK", dataType: "int", isPK: true, isFK: false },
+          { name: "l_quantity", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "l_extendedprice", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "l_discount", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "l_tax", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "l_returnflag", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "l_linestatus", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "l_shipdate", type: "", dataType: "date", isPK: false, isFK: false },
+          { name: "l_commitdate", type: "", dataType: "date", isPK: false, isFK: false },
+          { name: "l_receiptdate", type: "", dataType: "date", isPK: false, isFK: false },
+          { name: "l_shipinstruct", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "l_shipmode", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "l_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
         ],
       },
       {
@@ -74,9 +92,62 @@ const MOCK_SCHEMA = {
         type: "table",
         expanded: false,
         columns: [
-          { name: "id", type: "PK", dataType: "int", isPK: true, isFK: false },
-          { name: "name", type: "", dataType: "varchar", isPK: false, isFK: false },
-          { name: "region", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "n_nationkey", type: "PK", dataType: "int", isPK: true, isFK: false },
+          { name: "n_name", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "n_regionkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "n_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
+        ],
+      },
+      {
+        name: "region",
+        type: "table",
+        expanded: false,
+        columns: [
+          { name: "r_regionkey", type: "PK", dataType: "int", isPK: true, isFK: false },
+          { name: "r_name", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "r_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
+        ],
+      },
+      {
+        name: "part",
+        type: "table",
+        expanded: false,
+        columns: [
+          { name: "p_partkey", type: "PK", dataType: "int", isPK: true, isFK: false },
+          { name: "p_name", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "p_mfgr", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "p_brand", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "p_type", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "p_size", type: "", dataType: "int", isPK: false, isFK: false },
+          { name: "p_container", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "p_retailprice", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "p_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
+        ],
+      },
+      {
+        name: "supplier",
+        type: "table",
+        expanded: false,
+        columns: [
+          { name: "s_suppkey", type: "PK", dataType: "int", isPK: true, isFK: false },
+          { name: "s_name", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "s_address", type: "", dataType: "varchar", isPK: false, isFK: false },
+          { name: "s_nationkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "s_phone", type: "", dataType: "char", isPK: false, isFK: false },
+          { name: "s_acctbal", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "s_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
+        ],
+      },
+      {
+        name: "partsupp",
+        type: "table",
+        expanded: false,
+        columns: [
+          { name: "ps_partkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "ps_suppkey", type: "FK", dataType: "int", isPK: false, isFK: true },
+          { name: "ps_availqty", type: "", dataType: "int", isPK: false, isFK: false },
+          { name: "ps_supplycost", type: "", dataType: "numeric", isPK: false, isFK: false },
+          { name: "ps_comment", type: "", dataType: "varchar", isPK: false, isFK: false },
         ],
       },
     ],
@@ -172,7 +243,7 @@ function SchemaTableRow({ table }) {
 }
 
 function DatabaseSchemaPanel() {
-  const { dbStatus, connectDB, disconnectDB } = useOptimizationStore();
+  const { dbStatus, connectDB, disconnectDB, schema, dbError } = useOptimizationStore();
   const [connectionMethod, setConnectionMethod] = useState("live");
   const [dbConn, setDbConn] = useState({
     host: "localhost", port: "5432", dbname: "tpch", user: "postgres", password: "",
@@ -237,15 +308,18 @@ function DatabaseSchemaPanel() {
         {/* Warning badge */}
         <div className="
           flex items-center gap-2 px-3 py-2.5 rounded-lg
-          dark:bg-orange-500/10 dark:border dark:border-orange-500/20 dark:text-orange-400
-          bg-orange-50 border border-orange-200 text-orange-700
+          ${dbError
+            ? 'dark:bg-red-500/10 dark:border dark:border-red-500/20 dark:text-red-400 bg-red-50 border border-red-200 text-red-700'
+            : 'dark:bg-orange-500/10 dark:border dark:border-orange-500/20 dark:text-orange-400 bg-orange-50 border border-orange-200 text-orange-700'}
         ">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"
             className="shrink-0">
             <path d="M8.22 1.75a.75.75 0 0 0-1.5 0v5.69L4.53 9.96a.75.75 0 1 0 1.06 1.06l2.8-2.8V12a.75.75 0 0 0 1.5 0V7.41l2.8 2.8a.75.75 0 0 0 1.06-1.06l-2.69-2.52V1.75z"/>
             <path d="M8 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
           </svg>
-          <span className="text-[11px] font-semibold">No active connection</span>
+          <span className="text-[11px] font-semibold">
+            {dbError ? `Connection failed: ${dbError}` : "No active connection — connect before optimizing"}
+          </span>
         </div>
 
         {/* ── Live Connection form ── */}
@@ -371,7 +445,7 @@ function DatabaseSchemaPanel() {
   }
 
   /* ── BLOCK B: Schema Tree View (connected) ── */
-  const schema = MOCK_SCHEMA.postgres_15;
+  const liveTables = schema?.tables || [];
 
   return (
     <div className="mt-1">
@@ -385,7 +459,7 @@ function DatabaseSchemaPanel() {
             <span className="relative inline-flex rounded-full h-2 w-2 dark:bg-green-400 bg-green-500" />
           </span>
           <span className="text-[12px] font-semibold font-mono dark:text-[#E6EDF3] text-gray-200">
-            postgres_15
+            {schema?.db_name || "postgres"}
           </span>
         </div>
 
@@ -415,15 +489,32 @@ function DatabaseSchemaPanel() {
           Tables
         </span>
         <span className="text-[9px] font-mono dark:text-[#484F58] text-gray-500">
-          {schema.tables.length}
+          {liveTables.length}
         </span>
       </div>
 
-      {/* Schema tree */}
+      {/* Schema tree — live from DB */}
       <div>
-        {schema.tables.map((table) => (
-          <SchemaTableRow key={table.name} table={table} />
+        {liveTables.map((table) => (
+          <SchemaTableRow
+            key={table.name}
+            table={{
+              ...table,
+              expanded: false,
+              columns: table.columns.map(c => ({
+                name: c.name,
+                dataType: c.type,
+                isPK: c.isPK,
+                isFK: c.isFK,
+              })),
+            }}
+          />
         ))}
+        {liveTables.length === 0 && (
+          <p className="text-[11px] text-gray-600 text-center py-8">
+            No tables found in database.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -432,9 +523,10 @@ function DatabaseSchemaPanel() {
 /* ─────────────────────────────────────────────────────────────────────────
    LEFT SIDEBAR
 ───────────────────────────────────────────────────────────────────────── */
-function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, onToggleRule }) {
+function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, onToggleRule, dbStatus }) {
   const [leftTab, setLeftTab] = useState("rules");
-
+  const isConnected = dbStatus === "connected";
+  const isBtnDisabled = !isConnected || isAnalyzing || !sql.trim();
   const activeCount = activeRules.filter(Boolean).length;
 
   return (
@@ -479,7 +571,7 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
         <textarea
           value={sql}
           onChange={(e) => onSqlChange(e.target.value)}
-          placeholder="SELECT * FROM orders WHERE..."
+          placeholder="SELECT c_name, o_totalprice FROM customer c LEFT JOIN orders o ON c_custkey = o_custkey WHERE c_mktsegment = 'AUTOMOBILE'..."
           spellCheck={false}
           className="
             flex-1 w-full p-3 rounded-xl min-h-0
@@ -493,7 +585,8 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
 
         <button
           onClick={onAnalyze}
-          disabled={isAnalyzing || !sql.trim()}
+          disabled={isBtnDisabled}
+          title={!isConnected ? "Connect to a database first" : !sql.trim() ? "Enter a SQL query" : ""}
           className={`
             w-full flex items-center justify-center gap-2
             px-4 py-2.5 rounded-xl text-[12px] font-semibold shrink-0
@@ -501,12 +594,16 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
             disabled:opacity-40 disabled:cursor-not-allowed
             ${isAnalyzing
               ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-              : "bg-purple-500 hover:bg-purple-400 text-white shadow-lg shadow-purple-500/20 active:scale-[0.98]"
+              : isConnected
+              ? "bg-purple-500 hover:bg-purple-400 text-white shadow-lg shadow-purple-500/20 active:scale-[0.98]"
+              : "bg-purple-500/20 text-gray-500 border border-purple-500/10 cursor-not-allowed"
             }
           `}
         >
           {isAnalyzing ? (
             <><Loader size={14} />Analyzing...</>
+          ) : !isConnected ? (
+            <><Send size={14} />Connect DB First</>
           ) : (
             <><Send size={14} />Analyze Query</>
           )}
@@ -741,7 +838,13 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
             </svg>
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-semibold text-red-400 mb-1">Analysis Failed</div>
-              <div className="text-[11px] text-red-300/70 break-words">{error}</div>
+              <div className="text-[11px] text-red-300/70 break-words">
+                {typeof error === 'string' ? error
+                  : error?.message ? error.message
+                  : Array.isArray(error) ? error.map(e => typeof e === 'string' ? e : e?.msg || JSON.stringify(e)).join('; ')
+                  : error?.detail ? (typeof error.detail === 'string' ? error.detail : Array.isArray(error.detail) ? error.detail.map(e => e?.msg || JSON.stringify(e)).join('; ') : error.detail?.msg || JSON.stringify(error.detail))
+                  : JSON.stringify(error)}
+              </div>
             </div>
             {onRetry && (
               <button
@@ -886,28 +989,59 @@ function TopHeader({ onExport }) {
    APP ROOT
 ───────────────────────────────────────────────────────────────────────── */
 export default function App() {
-  const [sql, setSql] = useState(mockAnalysisResult.original_sql);
+  const [sql, setSql] = useState("");
   const [activeRules, setActiveRules] = useState(
     KNOWLEDGE_BASE_RULES.map(() => true)
   );
 
   // ── Store slices ───────────────────────────────────────────
-  const { isAnalyzing, error, data, decisions, openExportModal, analyzeQuery, setDecision } =
+  const { isAnalyzing, error, data, decisions, openExportModal, analyzeQuery, setDecision, dbStatus, schema } =
     useOptimizationStore();
 
-  // Initialise with mock data so the dashboard isn't blank on first load
-  const displayData = data ?? mockAnalysisResult;
-  const displayDecisions = Object.keys(decisions).length > 0
-    ? decisions
-    : Object.fromEntries(
-        mockAnalysisResult.candidates
-          .filter((c) => !c.is_original)
-          .map((c) => [c.id, "pending"])
-      );
+  // Only show real data from the API — never fall back to mock
+  const displayData = data;
+  const displayDecisions = decisions;
+
+  // ── Schema-aware SQL validation ────────────────────────────
+  const validateSqlAgainstSchema = useCallback((rawSql, liveSchema) => {
+    const tables = liveSchema?.tables || [];
+    const tableNames = new Set(tables.map(t => t.name.toLowerCase()));
+    // Extract table names from SQL FROM/JOIN clauses
+    const fromMatch = rawSql.match(/(?:FROM|JOIN)\s+(\w+)/gi) || [];
+    const referenced = fromMatch.map(m => m.split(/\s+/)[1].toLowerCase());
+    const unknown = referenced.filter(t => !tableNames.has(t));
+    if (unknown.length > 0) {
+      return {
+        valid: false,
+        message: `Unknown table(s): ${[...new Set(unknown)].join(', ')}. Available tables: ${[...tableNames].join(', ')}.`,
+        suggestions: tables.map(t => `  ${t.name} (${t.columns.length} cols: ${t.columns.map(c => c.name).join(', ')})`),
+      };
+    }
+    return { valid: true };
+  }, []);
 
   const handleAnalyze = useCallback(() => {
-    analyzeQuery(sql, activeRules);
-  }, [sql, activeRules, analyzeQuery]);
+    if (dbStatus !== "connected") {
+      // Surface error via store
+      useOptimizationStore.setState({ error: "Connect to a database first before analyzing queries." });
+      return;
+    }
+    // Convert boolean array to rule name array for the API
+    const enabledRules = KNOWLEDGE_BASE_RULES
+      .map((rule, i) => activeRules[i] ? rule.id : null)
+      .filter(Boolean);
+
+    const validation = validateSqlAgainstSchema(sql, schema);
+    if (!validation.valid) {
+      const tables = schema?.tables || [];
+      const msg = `${validation.message}\n\nAvailable tables:\n${tables.map(t => `• ${t.name}: ${t.columns.map(c => c.name).join(', ')}`).join('\n')}`;
+      if (window.confirm(`Schema Warning:\n${msg}\n\nClick OK to send to backend anyway, Cancel to edit.`)) {
+        analyzeQuery(sql, enabledRules);
+      }
+      return;
+    }
+    analyzeQuery(sql, enabledRules);
+  }, [sql, activeRules, analyzeQuery, validateSqlAgainstSchema, dbStatus, schema]);
 
   const handleApprove = useCallback((id) => {
     setDecision(id, "approved");
@@ -945,6 +1079,7 @@ export default function App() {
               isAnalyzing={isAnalyzing}
               activeRules={activeRules}
               onToggleRule={handleToggleRule}
+              dbStatus={dbStatus}
             />
           </div>
 

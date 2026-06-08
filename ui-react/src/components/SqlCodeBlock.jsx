@@ -32,7 +32,7 @@ const customStyle = {
 
 export function SqlCodeBlock({ code = "", className = "" }) {
   return (
-    <div className={`overflow-x-auto ${className}`}>
+    <div className={className}>
       <SyntaxHighlighter
         language="sql"
         style={customStyle}
@@ -44,7 +44,8 @@ export function SqlCodeBlock({ code = "", className = "" }) {
           fontSize: "12px",
           lineHeight: "1.6",
           fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-          wordBreak: "break-all",
+          wordBreak: "normal",
+          overflowWrap: "break-word",
           whiteSpace: "pre-wrap",
         }}
         codeTagProps={{

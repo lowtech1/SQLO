@@ -34,7 +34,9 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
           <span className="text-[8px] text-gray-600 w-6 text-right shrink-0 font-medium">Orig</span>
           <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
             <div
-              className="h-full bg-red-500/30 rounded-full flex items-center justify-end pr-1.5 transition-all duration-700"
+              className={`h-full rounded-full flex items-center justify-end pr-1.5 transition-all duration-700 ${
+                improved ? "bg-green-500/30" : "bg-red-500/30"
+              }`}
               style={{ width: `${origW}%` }}
             >
               {origW > 22 && (
@@ -48,14 +50,18 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
 
         {/* Optimized bar */}
         <div className="flex items-center gap-2">
-          <span className="text-[8px] text-green-400/70 w-6 text-right shrink-0 font-medium">Opt</span>
+          <span className="text-[8px] w-6 text-right shrink-0 font-medium">Opt</span>
           <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
             <div
-              className="h-full bg-green-500/30 rounded-full flex items-center justify-end pr-1.5 transition-all duration-700"
+              className={`h-full rounded-full flex items-center justify-end pr-1.5 transition-all duration-700 ${
+                improved ? "bg-green-500/50" : "bg-red-500/50"
+              }`}
               style={{ width: `${optW}%` }}
             >
               {optW > 22 && (
-                <span className="text-[8px] font-mono font-bold text-green-400/80 leading-none">
+                <span className={`text-[8px] font-mono font-bold leading-none ${
+                  improved ? "text-green-400/80" : "text-red-400/80"
+                }`}>
                   {opt}{unit}
                 </span>
               )}
@@ -99,10 +105,12 @@ export function MetricsPanel({ data, decisions }) {
 
   const fmt = (n) => {
     if (n === null || n === undefined) return "—";
+    // n is already the correct sign after backend inversion:
+    //   negative = improvement (opt < orig), positive = degradation (opt > orig)
     return n > 0 ? `+${n.toFixed(1)}%` : `${n.toFixed(1)}%`;
   };
 
-  const totalCostImp = comp?.cost_improvement_pct ?? topMetrics?.total_cost ? -43.4 : 0;
+  const totalCostImp = comp?.cost_improvement_pct ?? 0;
 
   return (
     <aside className="flex-1 min-h-0 flex flex-col bg-[#0B0F19] border-l border-white/5">
@@ -217,8 +225,8 @@ export function MetricsPanel({ data, decisions }) {
                 <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
                   Total Improvement
                 </span>
-                <span className="text-[16px] font-bold font-mono text-green-400">
-                  {fmt(totalCostImp * -1)}
+                <span className={`text-[16px] font-bold font-mono ${totalCostImp <= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {fmt(totalCostImp)}
                 </span>
               </div>
               <div className="h-2.5 bg-[#1F2937] rounded-full overflow-hidden">
@@ -229,7 +237,9 @@ export function MetricsPanel({ data, decisions }) {
                       ((rewMetrics?.total_cost ?? topMetrics?.total_cost ?? 0) /
                        (origMetrics?.total_cost ?? topMetrics?.total_cost ?? 1)) * 100
                     ))}%`,
-                    background: "linear-gradient(to right, rgba(34,197,94,0.4), rgba(34,197,94,0.7))",
+                    background: totalCostImp <= 0
+                      ? "linear-gradient(to right, rgba(34,197,94,0.4), rgba(34,197,94,0.7))"
+                      : "linear-gradient(to right, rgba(239,68,68,0.4), rgba(239,68,68,0.7))",
                   }}
                 />
               </div>

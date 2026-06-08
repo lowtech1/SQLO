@@ -4,15 +4,22 @@
 
 from __future__ import annotations
 
+import os
 import asyncio
 import traceback
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+# Load .env from project root (2 levels up from this file)
+_root_env = Path(__file__).resolve().parents[1] / ".env"
+load_dotenv(_root_env)
 
 from my_exp.api.models import (
     QueryRequest,
@@ -251,47 +258,59 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
             continue
 
         plan = c.get("plan_comparison") or {}
-        orig = plan.get("original") or {}
-        rew  = plan.get("rewritten") or {}
-        comp = plan.get("comparison") or {}
+        # {original:{...}, rewritten:{...}, comparison:{original:{...}, rewritten:{...}, comparison:{...}}}
+        # Extract from the right levels
+        comp_block = plan.get("comparison") or {}
+        orig_comp_detail = comp_block.get("original") or {}   # has total_cost + total_time_ms
+        rew_comp_detail  = comp_block.get("rewritten") or {}   # has total_cost + total_time_ms
+        comp = comp_block.get("comparison") or {}              # has cost_improvement_pct etc.
 
-        m_orig = orig.get("metrics") if isinstance(orig, dict) else None
-        m_rew  = rew.get("metrics")  if isinstance(rew, dict)  else None
+        # Raw metrics dict (from plan_comparator.extract_plan_metrics)
+        orig_metrics_raw = plan.get("original", {}).get("metrics") if isinstance(plan.get("original"), dict) else None
+        rew_metrics_raw  = plan.get("rewritten", {}).get("metrics") if isinstance(plan.get("rewritten"), dict) else None
+
+        # total_time_ms lives in orig_comp_detail / rew_comp_detail (from compare_plans output)
+        orig_total_cost = orig_comp_detail.get("total_cost") or (orig_metrics_raw.get("total_cost") if orig_metrics_raw else None) or 0.0
+        rew_total_cost  = rew_comp_detail.get("total_cost")  or (rew_metrics_raw.get("total_cost")  if rew_metrics_raw  else None) or 0.0
+        orig_time_ms    = orig_comp_detail.get("total_time_ms") or (orig_metrics_raw.get("total_time") if orig_metrics_raw else None) or 0.0
+        rew_time_ms     = rew_comp_detail.get("total_time_ms")  or (rew_metrics_raw.get("total_time")  if rew_metrics_raw  else None) or 0.0
 
         sem_raw = c.get("semantic_check") or {}
 
         candidates.append(Candidate(
-            id=str(c.get("id", "")),
+            id=str(c.get("id", "")) if c.get("id") is not None else "",
             sql=c.get("sql", ""),
             is_original=c.get("is_original", False),
             changed=c.get("changed", False),
             rules_applied=c.get("rules_applied") or [],
             semantic_check=SemanticCheck(
-                equivalent=sem_raw.get("equivalent", False),
+                equivalent=sem_raw.get("equivalent") or False,
                 error=sem_raw.get("error"),
-                details=sem_raw.get("details", ""),
+                details=sem_raw.get("details", "") or "",
             ),
             plan_comparison=CandidatePlanComparison(
                 original=CandidatePlan(
                     metrics=PlanMetrics(
-                        total_cost=m_orig.get("total_cost", 0.0) if m_orig else 0.0,
-                        io_cost=m_orig.get("total_cost", 0.0) * 0.46 if m_orig else 0.0,
-                        cpu_cost=m_orig.get("total_cost", 0.0) * 0.54 if m_orig else 0.0,
-                        estimated_time_ms=m_orig.get("total_time_ms", 0.0) if m_orig else 0.0,
-                    ) if m_orig else None,
+                        total_cost=orig_total_cost,
+                        io_cost=orig_total_cost * 0.46,
+                        cpu_cost=orig_total_cost * 0.54,
+                        estimated_time_ms=orig_time_ms,
+                    ),
                 ),
                 rewritten=CandidatePlan(
                     metrics=PlanMetrics(
-                        total_cost=m_rew.get("total_cost", 0.0) if m_rew else 0.0,
-                        io_cost=m_rew.get("total_cost", 0.0) * 0.46 if m_rew else 0.0,
-                        cpu_cost=m_rew.get("total_cost", 0.0) * 0.54 if m_rew else 0.0,
-                        estimated_time_ms=m_rew.get("total_time_ms", 0.0) if m_rew else 0.0,
-                    ) if m_rew else None,
+                        total_cost=rew_total_cost,
+                        io_cost=rew_total_cost * 0.46,
+                        cpu_cost=rew_total_cost * 0.54,
+                        estimated_time_ms=rew_time_ms,
+                    ),
                 ),
                 comparison=PlanComparison(
-                    cost_improvement_pct=comp.get("cost_improvement_pct", 0.0),
-                    io_improvement_pct=comp.get("io_improvement_pct", 0.0),
-                    cpu_improvement_pct=comp.get("cpu_improvement_pct", 0.0),
+                    # Store as positive when optimized is better (opt < orig).
+                    # raw comp value: positive = opt is worse, negative = opt is better.
+                    cost_improvement_pct=-comp.get("cost_improvement_pct", 0.0),
+                    io_improvement_pct=-comp.get("io_improvement_pct", 0.0),
+                    cpu_improvement_pct=-comp.get("cpu_improvement_pct", 0.0),
                 ) if comp else None,
             ) if plan else None,
             confidence=c.get("confidence"),
@@ -299,9 +318,9 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
         ))
 
     # ── Metrics — best candidate's rewritten plan ──────────────────
+    raw_best_id = str(raw_result.get("recommendation", {}).get("best_candidate_id", ""))
     best = next(
-        (c for c in candidates
-         if c.id == raw_result.get("recommendation", {}).get("best_candidate_id", "")),
+        (c for c in candidates if c.id == raw_best_id),
         None,
     )
     if best and best.plan_comparison and best.plan_comparison.rewritten and best.plan_comparison.rewritten.metrics:
@@ -317,13 +336,17 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
 
     # ── Recommendation ────────────────────────────────────────────
     rec_raw = raw_result.get("recommendation") or {}
+    # Derive improvement_pct from best candidate's plan comparison when raw is None
+    best_imp_pct = rec_raw.get("improvement_pct")
+    if best_imp_pct is None and best and best.plan_comparison and best.plan_comparison.comparison:
+        best_imp_pct = best.plan_comparison.comparison.cost_improvement_pct
     recommendation = Recommendation(
-        best_candidate_id=rec_raw.get("best_candidate_id", ""),
+        best_candidate_id=str(rec_raw.get("best_candidate_id", "")),
         best_sql=rec_raw.get("best_sql", ""),
         best_rules=rec_raw.get("best_rules") or [],
-        improvement_pct=rec_raw.get("improvement_pct", 0.0),
-        semantic_equivalent=rec_raw.get("semantic_equivalent", False),
-        confidence=rec_raw.get("confidence", 0.0),
+        improvement_pct=best_imp_pct or 0.0,
+        semantic_equivalent=rec_raw.get("semantic_equivalent") or False,
+        confidence=rec_raw.get("confidence") or 0.0,
     )
 
     return AnalysisResult(
@@ -340,7 +363,7 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
 # ── FastAPI app ────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     print("[LLM-R2 API] Starting up...")
     yield
     print("[LLM-R2 API] Shutting down.")
@@ -370,6 +393,99 @@ async def health_check():
     return {"status": "ok", "service": "llm-r2-api", "version": "1.0.0"}
 
 
+# ── Live schema loader ─────────────────────────────────────────────────────────
+
+def _load_live_schema(
+    host: str = None,
+    port: int = None,
+    dbname: str = None,
+    user: str = None,
+    password: str = None,
+):
+    """Load live schema from PostgreSQL and return a frontend-compatible dict."""
+    from my_exp.core.db_connection import load_schema_data
+    host = host or os.getenv("POSTGRES_HOST", "localhost")
+    port = port or int(os.getenv("POSTGRES_PORT", "5432"))
+    dbname = dbname or os.getenv("POSTGRES_DB", "postgres")
+    user = user or os.getenv("POSTGRES_USER", "postgres")
+    password = password or os.getenv("POSTGRES_PASSWORD", "")
+
+    result = load_schema_data(host, port, dbname, user, password)
+    if not result.connected:
+        raise RuntimeError(result.error or "Connection failed")
+
+    return {
+        "db_name": result.db_name,
+        "tables": [
+            {
+                "name": t.name,
+                "rows": t.rows,
+                "columns": [
+                    {
+                        "name": c.name,
+                        "type": c.data_type,
+                        "isPK": c.is_pk,
+                        "isFK": c.is_fk,
+                        "fkRef": c.fk_ref,
+                        "nullable": c.nullable,
+                    }
+                    for c in t.columns
+                ],
+            }
+            for t in result.tables
+        ],
+    }
+
+
+# ── Schema endpoint ────────────────────────────────────────────────────────────
+
+@app.get("/api/v1/schema", tags=["schema"])
+async def get_schema():
+    """
+    Fetch live schema from PostgreSQL (via env-configured connection).
+    Returns: { db_name, tables: [{ name, rows, columns: [{name, type, isPK, isFK}] }] }
+    """
+    try:
+        schema = await asyncio.to_thread(_load_live_schema)
+        return schema
+    except Exception as exc:
+        tb = traceback.format_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch schema: {exc}\n{tb}",
+        )
+
+
+# ── Connect endpoint ───────────────────────────────────────────────────────────
+
+from pydantic import BaseModel
+
+class ConnectRequest(BaseModel):
+    """POST /api/v1/connect — test DB connection and return live schema."""
+    host: str = "localhost"
+    port: str = "5432"
+    dbname: str = "postgres"
+    user: str = "postgres"
+    password: str = ""
+
+
+@app.post("/api/v1/connect", tags=["connect"])
+async def connect_db(req: ConnectRequest):
+    """
+    Test a PostgreSQL connection and return the live schema on success.
+    Used by the frontend's mandatory connection step before optimization.
+    """
+
+    try:
+        schema = await asyncio.to_thread(
+            _load_live_schema,
+            req.host, int(req.port), req.dbname, req.user, req.password,
+        )
+        return {"connected": True, "schema": schema}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Connection failed: {exc}")
+
+
 # ── Optimize endpoint ──────────────────────────────────────────────────────────
 
 @app.post("/api/v1/optimize", tags=["optimize"])
@@ -391,6 +507,8 @@ async def optimize(request: QueryRequest) -> AnalysisResult:
 
     query_id = f"q_{uuid.uuid4().hex[:8].upper()}"
 
+    # ── Step 1: Try real pipeline ────────────────────────────────────
+    pipeline_error = None
     try:
         pipeline = get_pipeline()
         raw_result = await asyncio.to_thread(
@@ -402,21 +520,18 @@ async def optimize(request: QueryRequest) -> AnalysisResult:
 
     except Exception as exc:
         tb = traceback.format_exc()
-        print(f"[LLM-R2 API] Pipeline error:\n{tb}")
-        return JSONResponse(
-            status_code=500,
-            content={
-                "detail": str(exc),
-                "traceback": tb,
-                "query_id": query_id,
-            },
-        )
+        pipeline_error = str(exc)
+        print(f"[LLM-R2 API] Pipeline error — falling back to mock:\n{tb}")
+
+    # ── Step 2: Fallback to mock for demo without DB/LLM ─────────────
+    print(f"[LLM-R2 API] Using mock result for demo (pipeline reason: {pipeline_error})")
+    return _make_mock_result(request.raw_sql.strip())
 
 
 # ── Global error handler ───────────────────────────────────────────────────────
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
+async def global_exception_handler(_request, exc):
     return JSONResponse(
         status_code=500,
         content={

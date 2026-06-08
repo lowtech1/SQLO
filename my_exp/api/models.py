@@ -15,7 +15,7 @@ class QueryRequest(BaseModel):
     """POST /api/v1/optimize — incoming SQL + active rules."""
 
     raw_sql: str = Field(..., description="Raw SQL query string")
-    active_rules: list[str] = Field(
+    active_rules: list = Field(
         default_factory=list,
         description="List of active rule IDs to apply, e.g. ['projection_pruning', 'join_reordering']",
     )

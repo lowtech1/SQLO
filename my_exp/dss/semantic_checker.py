@@ -13,6 +13,10 @@ from typing import Optional, Tuple
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
+from dotenv import load_dotenv
+_root_env = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../.env'))
+load_dotenv(_root_env)
+
 
 def get_db_connection(dbname: str = None, host: str = None, port: int = None,
                        user: str = None, password: str = None):
@@ -46,7 +50,7 @@ def execute_query(conn, sql: str, timeout_sec: int = 30) -> Tuple[Optional[list]
         result = [dict(row) for row in rows]
         cur.close()
         return result, None
-    except psycopg2.errors.StatementTimeout:
+    except psycopg2.errors.lookup('57000'):  # StatementTimeout / QueryCanceled
         return None, "Query timeout"
     except psycopg2.errors.CardinalityViolation:
         return None, "Cardinality violation"

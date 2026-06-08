@@ -2,48 +2,47 @@
  * mockData.js
  * Realistic mock data matching the exact backend payload structure
  * from my_exp/api/models.py (AnalysisResult).
- * All text in standard professional English.
+ * Uses real TPC-H schema: customer, orders, lineitem, nation, region, part, supplier, partsupp.
  */
 
 export const mockAnalysisResult = {
-  query_id: "q_99281",
-  timestamp: "2026-06-04T10:30:00Z",
-  original_sql: `SELECT a.*, b.*
-FROM orders a
-LEFT JOIN customers b
-  ON a.cust_id = b.id
-WHERE b.status = 'ACTIVE'
-  AND a.order_date >= '2026-01-01';`,
+  query_id: "q_tpch001",
+  timestamp: "2026-06-07T08:00:00Z",
+
+  // TPC-H schema: customer (c_*), orders (o_*)
+  original_sql: `SELECT c.c_name, o.o_totalprice
+FROM customer c
+LEFT JOIN orders o ON c.c_custkey = o.o_custkey
+WHERE c.c_mktsegment = 'AUTOMOBILE'
+  AND o.o_totalprice > 1000`,
 
   rule_recommendations: {
     method: "llm",
     overall_analysis:
-      "Query contains 2 tables, 1 LEFT JOIN, and 2 filter conditions. " +
-      "Two optimizations available: (1) Remove unnecessary columns from SELECT, " +
-      "(2) Convert LEFT JOIN to INNER JOIN since all filters are mandatory.",
+      "Query joins customer and orders on TPC-H schema (c_custkey/o_custkey). " +
+      "LEFT JOIN preserves all customers even without orders. WHERE filter on o_totalprice is mandatory. " +
+      "Two optimizations recommended: (1) Convert LEFT JOIN to INNER JOIN — filter makes LEFT JOIN redundant, " +
+      "(2) Prune columns to only c_name and o_totalprice.",
     recommendations: [
       {
-        rule: "projection_pruning",
+        rule: "join_reordering",
         priority: 1,
         reason:
-          "SELECT a.*, b.* retrieves all columns from both tables. " +
-          "Only a.id, a.order_date, and b.name are needed. " +
-          "Removing unnecessary columns reduces memory footprint and network I/O significantly. " +
-          "Additionally, since WHERE b.status = 'ACTIVE' is mandatory, " +
-          "the LEFT JOIN is effectively equivalent to an INNER JOIN.",
-        before_snippet: "SELECT a.*, b.*",
-        after_snippet: "SELECT a.id, a.order_date, b.name",
+          "LEFT JOIN with WHERE o.o_totalprice > 1000 eliminates NULL orders anyway. " +
+          "Converting LEFT JOIN to INNER JOIN is safe and enables Hash Join with the smaller, " +
+          "filtered orders table driving first, reducing intermediate rows significantly.",
+        before_snippet: "FROM customer c LEFT JOIN orders o ON c.c_custkey = o.o_custkey",
+        after_snippet: "FROM orders o INNER JOIN customer c ON o.o_custkey = c.c_custkey",
       },
       {
-        rule: "join_reordering",
+        rule: "projection_pruning",
         priority: 2,
         reason:
-          "LEFT JOIN customers b ON a.cust_id = b.id " +
-          "WHERE b.status = 'ACTIVE' — filter is mandatory on table b. " +
-          "Pushing the WHERE condition into the JOIN condition and converting LEFT JOIN to INNER JOIN " +
-          "places the smaller table (customers, with filter applied) first, reducing intermediate rows exponentially.",
-        before_snippet: "FROM orders a LEFT JOIN customers b ON a.cust_id = b.id",
-        after_snippet: "FROM customers b INNER JOIN orders a ON b.id = a.cust_id",
+          "SELECT c.*, o.* retrieves all columns from both tables. " +
+          "Only c.c_name and o.o_totalprice are referenced. " +
+          "Pruning to these 2 columns reduces I/O bandwidth and memory footprint by ~75%.",
+        before_snippet: "SELECT c.*, o.*",
+        after_snippet: "SELECT c.c_name, o.o_totalprice",
       },
     ],
   },
@@ -58,41 +57,28 @@ WHERE b.status = 'ACTIVE'
   candidates: [
     {
       id: "cand_0",
-      sql: `SELECT a.*, b.*
-FROM orders a
-LEFT JOIN customers b
-  ON a.cust_id = b.id
-WHERE b.status = 'ACTIVE'
-  AND a.order_date >= '2026-01-01';`,
+      sql: `SELECT c.c_name, o.o_totalprice
+FROM customer c
+LEFT JOIN orders o ON c.c_custkey = o.o_custkey
+WHERE c.c_mktsegment = 'AUTOMOBILE'
+  AND o.o_totalprice > 1000`,
       is_original: true,
       changed: false,
       rules_applied: [],
       semantic_check: {
         equivalent: true,
         error: null,
-        details: "Original query — baseline for comparison",
+        details: "Original query — baseline for comparison (TPC-H schema: customer, orders)",
       },
       plan_comparison: {
         original: {
-          metrics: {
-            total_cost: 1450,
-            io_cost: 850,
-            cpu_cost: 600,
-            estimated_time_ms: 340,
-          },
+          metrics: { total_cost: 1450, io_cost: 850, cpu_cost: 600, estimated_time_ms: 340 },
         },
         rewritten: {
-          metrics: {
-            total_cost: 1450,
-            io_cost: 850,
-            cpu_cost: 600,
-            estimated_time_ms: 340,
-          },
+          metrics: { total_cost: 1450, io_cost: 850, cpu_cost: 600, estimated_time_ms: 340 },
         },
         comparison: {
-          cost_improvement_pct: 0,
-          io_improvement_pct: 0,
-          cpu_improvement_pct: 0,
+          cost_improvement_pct: 0, io_improvement_pct: 0, cpu_improvement_pct: 0,
         },
       },
       confidence: "High",
@@ -100,95 +86,60 @@ WHERE b.status = 'ACTIVE'
     },
     {
       id: "cand_1",
-      sql: `SELECT
-  a.id,
-  a.order_date,
-  b.name
-FROM customers b
-INNER JOIN orders a
-  ON b.id = a.cust_id
-WHERE b.status = 'ACTIVE'
-  AND a.order_date >= '2026-01-01';`,
+      sql: `SELECT c.c_name, o.o_totalprice
+FROM orders o
+INNER JOIN customer c ON o.o_custkey = c.c_custkey
+WHERE c.c_mktsegment = 'AUTOMOBILE'
+  AND o.o_totalprice > 1000`,
       is_original: false,
       changed: true,
-      rules_applied: ["projection_pruning", "join_reordering"],
+      rules_applied: ["join_reordering"],
       semantic_check: {
         equivalent: true,
         error: null,
         details:
-          "Projection Pruning + Join Reordering applied. " +
-          "LEFT JOIN converted to INNER JOIN — equivalent given mandatory WHERE filter on b.status.",
+          "LEFT JOIN converted to INNER JOIN — safe because WHERE o.o_totalprice > 1000 " +
+          "eliminates NULL orders, making LEFT JOIN equivalent to INNER JOIN. " +
+          "Join order reversed: smaller filtered orders table drives Hash Join.",
       },
       plan_comparison: {
         original: {
-          metrics: {
-            total_cost: 1450,
-            io_cost: 850,
-            cpu_cost: 600,
-            estimated_time_ms: 340,
-          },
+          metrics: { total_cost: 1450, io_cost: 850, cpu_cost: 600, estimated_time_ms: 340 },
         },
         rewritten: {
-          metrics: {
-            total_cost: 820,
-            io_cost: 380,
-            cpu_cost: 440,
-            estimated_time_ms: 125,
-          },
+          metrics: { total_cost: 820, io_cost: 380, cpu_cost: 440, estimated_time_ms: 125 },
         },
         comparison: {
-          cost_improvement_pct: -43.4,
-          io_improvement_pct: -55.3,
-          cpu_improvement_pct: -26.7,
+          cost_improvement_pct: -43.4, io_improvement_pct: -55.3, cpu_improvement_pct: -26.7,
         },
       },
       confidence: "High",
-      warning:
-        "Only equivalent if b.status is NOT NULL for every customer. " +
-        "If there are customers with no orders, the result set will differ.",
+      warning: null,
     },
     {
       id: "cand_2",
-      sql: `SELECT
-  a.id,
-  a.order_date,
-  a.cust_id,
-  b.name,
-  b.status
-FROM orders a
-LEFT JOIN customers b
-  ON a.cust_id = b.id
-WHERE b.status = 'ACTIVE'
-  AND a.order_date >= '2026-01-01';`,
+      sql: `SELECT c.c_name, o.o_totalprice
+FROM customer c
+INNER JOIN orders o ON c.c_custkey = o.o_custkey
+WHERE c.c_mktsegment = 'AUTOMOBILE'
+  AND o.o_totalprice > 1000`,
       is_original: false,
       changed: true,
       rules_applied: ["projection_pruning"],
       semantic_check: {
         equivalent: true,
         error: null,
-        details: "Projection Pruning only — LEFT JOIN preserved",
+        details: "Projection Pruning applied — columns reduced to c_name and o_totalprice only.",
       },
       plan_comparison: {
         original: {
-          metrics: {
-            total_cost: 1450,
-            io_cost: 850,
-            cpu_cost: 600,
-            estimated_time_ms: 340,
-          },
+          metrics: { total_cost: 1450, io_cost: 850, cpu_cost: 600, estimated_time_ms: 340 },
         },
         rewritten: {
-          metrics: {
-            total_cost: 1180,
-            io_cost: 620,
-            cpu_cost: 560,
-            estimated_time_ms: 210,
-          },
+          metrics: { total_cost: 1180, io_cost: 620, cpu_cost: 560, estimated_time_ms: 210 },
         },
         comparison: {
-          cost_improvement_pct: -18.6,
-          io_improvement_pct: -27.1,
-          cpu_improvement_pct: -6.7,
+          cost_improvement_pct: -18.6, io_improvement_pct: -27.1, cpu_improvement_pct: -6.7,
         },
       },
       confidence: "Medium",
@@ -198,23 +149,19 @@ WHERE b.status = 'ACTIVE'
 
   recommendation: {
     best_candidate_id: "cand_1",
-    best_sql: `SELECT
-  a.id,
-  a.order_date,
-  b.name
-FROM customers b
-INNER JOIN orders a
-  ON b.id = a.cust_id
-WHERE b.status = 'ACTIVE'
-  AND a.order_date >= '2026-01-01';`,
-    best_rules: ["projection_pruning", "join_reordering"],
+    best_sql: `SELECT c.c_name, o.o_totalprice
+FROM orders o
+INNER JOIN customer c ON o.o_custkey = c.c_custkey
+WHERE c.c_mktsegment = 'AUTOMOBILE'
+  AND o.o_totalprice > 1000`,
+    best_rules: ["join_reordering"],
     improvement_pct: -43.4,
     semantic_equivalent: true,
     confidence: 0.95,
   },
 };
 
-/** 6 Knowledge Base rules — English labels only */
+/** 6 Knowledge Base rules */
 export const KNOWLEDGE_BASE_RULES = [
   {
     id: "predicate_pushdown",
@@ -241,7 +188,7 @@ export const KNOWLEDGE_BASE_RULES = [
     id: "subquery_unnesting",
     name: "Subquery Unnesting",
     description: "Convert IN/EXISTS subquery to JOIN for Hash Join",
-    benefit: "High — O(n*m) → O(n+m)",
+    benefit: "High — O(n*m) to O(n+m)",
     risk: "Medium",
   },
   {
