@@ -662,22 +662,184 @@ Uses PostgreSQL `EXPLAIN (ANALYZE, FORMAT JSON, COSTS, TIMING, BUFFERS)` to get 
 
 ---
 
-## 12. Environment Configuration
+## 12. Improvement Roadmap (Level 1-3)
+
+### Research Gap Analysis — Key Finding from Benchmark
+
+After running the full TPC-H benchmark (22 queries), the system revealed:
+
+**LLM-based SQL rewriting via sqlglot has fundamental limitations:**
+- Only 1/18 completed queries improved (Q22: +26.7%)
+- 8/18 queries became WORSE after rewriting
+- Root cause: sqlglot rewriters don't produce meaningfully different SQL for well-written TPC-H queries
+- The TPC-H queries are already optimized by design — rewriting them doesn't help
+
+**Index Recommendations are the real value:**
+- The system successfully identifies 1-4 index opportunities per query
+- Example: Q1 → `CREATE INDEX idx_lineitem_l_shipdate ON lineitem(l_shipdate);`
+- This is actionable: users can create these indexes and re-test
+- This aligns with real-world DBA practice
+
+**The thesis contribution shifts to:**
+1. **LLM as EXPLAIN-analyzer**: LLM reasons about execution plans to identify bottlenecks
+2. **Index Advisor**: Detects Seq Scan on large tables and recommends concrete indexes
+3. **Rule-based guardrails**: Semantic checks prevent incorrect rewrites (INNER JOIN never removed, SELECT * preserves columns)
+4. **Explainable optimization**: Every recommendation has `reason`, `before_snippet`, `after_snippet`
+
+### Research Gap Analysis
+
+Based on survey of related work (SPA/LASER/Larch/Octo/SQLChat/AIDE-SQL), the following gaps exist:
+
+| Gap | Existing Systems | LLM-R2 Addresses |
+|-----|-----------------|-----------------|
+| No semantic verification | SQLChat, AIDE-SQL, Octo | ✅ Column count + row-level check |
+| No rule-based safety | Most LLM-only systems | ✅ 6 rules with preconditions |
+| No EXPLAIN-guided rewrite | All systems except SPA (requires RL training) | ⚠️ Partial (manual EXPLAIN parsing) |
+| No explainable output | SPA, LASER (black-box RL) | ✅ Rule reasons + before/after snippets |
+| No lightweight deployment | SPA needs RL infrastructure; LASER needs MCTS | ✅ Single API call via Groq |
+| No TPC-H benchmark | Most academic systems | ✅ 22 TPC-H queries |
+| No multi-candidate comparison | Most systems | ✅ N candidates with semantic check |
+
+**Core differentiator**: LLM-R2 achieves **explainable rule-based SQL optimization with semantic correctness guarantees** at minimal infrastructure cost — positioning it between pure LLM tools (unreliable) and full RL training pipelines (expensive).
+
+---
+
+### Level 1: Core System Completion (1-2 weeks)
+
+**Goal**: Make the system reliable, complete, and thesis-demonstrable.
+
+#### L1.1: TPC-H Benchmark Suite
+- Run all 22 TPC-H queries through the pipeline
+- Generate comparison table: Query | Original Cost | Optimized Cost | Improvement % | Rules Applied | Semantic OK
+- Export as markdown table for thesis
+- Value: Provides empirical evidence of optimization effectiveness
+
+#### L1.2: Index Recommendation from EXPLAIN
+- Parse EXPLAIN JSON → detect Seq Scan on large tables
+- Generate: `CREATE INDEX idx_<table>_<column> ON <table>(<column>);`
+- Explain why: "Seq Scan detected on 6M-row lineitem table — index on l_shipdate would reduce cost"
+- Value: Actionable recommendations beyond rule rewriting
+
+#### L1.3: EXPLAIN-Guided LLM Rule Selection
+- Feed EXPLAIN JSON output into LLM prompt (not just SQL)
+- LLM sees: which nodes are expensive, which operations dominate
+- Prompt: "Based on this plan, which rules would reduce the Seq Scan cost?"
+- Value: Rule selection guided by actual plan bottlenecks, not just SQL structure
+
+#### L1.4: Side-by-Side Plan Display
+- Show original vs optimized EXPLAIN plans as two collapsible trees
+- Highlight changed nodes in green/red
+- Value: Visual proof of optimization for thesis presentation
+
+#### L1.5: Fix Remaining UI Issues
+- SQL output formatting (multi-line, word-wrap)
+- Metrics display (opt > orig = red, opt < orig = green)
+- Block Analyze until DB connected
+- Value: Usable thesis demo
+
+---
+
+### Level 2: Enhanced Accuracy (2-4 weeks)
+
+**Goal**: Improve optimization quality through better LLM integration and A/B testing.
+
+#### L2.1: Multi-Run Performance Testing
+- Run each query 5 times → report p50/p95/p99 latency
+- Current: single-run (unstable for fast queries)
+- Value: Reliable performance numbers for thesis
+
+#### L2.2: Query Complexity Scoring
+- Classify queries: O(n), O(n log n), O(n²), O(n³)
+- Based on: join count, subquery depth, aggregation complexity
+- Value: Justify rule recommendations with complexity analysis
+
+#### L2.3: Cost Breakdown Analysis
+- Parse EXPLAIN nodes → separate I/O cost, CPU cost, startup cost
+- Show which component dominates
+- Value: Targeted optimization recommendations
+
+#### L2.4: Cross-Rule Interaction Detection
+- Detect when rules conflict (e.g., Join Reordering + Subquery Unnesting order matters)
+- Add ordering constraints to rule engine
+- Value: Safer multi-rule optimization
+
+#### L2.5: Learned Rule Preference Log
+- Store which rules are approved/rejected by users
+- Build implicit preference model over time
+- Value: Adaptive rule selection based on feedback
+
+---
+
+### Level 3: Research Contributions (4-8 weeks)
+
+**Goal**: Original research contributions beyond implementation.
+
+#### L3.1: EXPLAIN-Guided LLM (Full Implementation)
+- Complete the feedback loop: Rewrite → EXPLAIN → LLM sees plan → Refine rewrite
+- Compare: LLM rule selection WITH vs WITHOUT EXPLAIN context
+- Value: Answers "Does seeing the plan improve rule selection accuracy?"
+- **Research question**: Can LLM improve rule selection by observing actual execution bottlenecks?
+
+#### L3.2: Ablation Study
+- Compare: LLM-guided vs Pattern-only on same TPC-H queries
+- Measure: Improvement rate, semantic error rate, explanation quality
+- Value: Quantify the LLM contribution over heuristics
+
+#### L3.3: Cross-DB Generalization
+- Test on PostgreSQL (tpch) vs MySQL (tpch-mysql) vs SQLite
+- Measure: Portability of rule-based approach
+- Value: Does the method generalize beyond PostgreSQL?
+
+#### L3.4: Visual EXPLAIN Tree
+- Render EXPLAIN JSON as interactive tree (similar to pgAdmin)
+- Color-coded by node type (Seq Scan=red, Index Scan=green, Hash Join=orange)
+- Value: Better thesis visualization
+
+#### L3.5: Comparative Evaluation Report
+- Compare LLM-R2 against: SQLChat, AIDE-SQL, PostgreSQL native optimizer
+- Metrics: Semantic error rate, improvement rate, response time
+- Value: Independent evaluation for thesis defense
+
+---
+
+### Implementation Priority Matrix
+
+| Priority | Feature | Effort | Research Value | Status |
+|----------|---------|--------|----------------|--------|
+| P0 | TPC-H Benchmark | 2h | VERY HIGH | TODO |
+| P0 | L1.5 UI fixes (done) | 2h | MEDIUM | DONE |
+| P1 | Index recommendation | 4h | HIGH | TODO |
+| P1 | EXPLAIN-guided LLM | 6h | VERY HIGH | TODO |
+| P1 | Multi-run A/B testing | 3h | HIGH | TODO |
+| P2 | Query complexity scoring | 4h | MEDIUM | TODO |
+| P2 | Cross-rule interaction | 3h | MEDIUM | TODO |
+| P2 | Learned preference log | 8h | HIGH | TODO |
+| P3 | Cross-DB generalization | 8h | HIGH | TODO |
+| P3 | Visual EXPLAIN tree | 6h | MEDIUM | TODO |
+| P3 | Ablation study | 4h | VERY HIGH | TODO |
+
+---
+
+## 13. Environment Configuration
 
 ```bash
 # PostgreSQL
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
-POSTGRES_DB=dsb
+POSTGRES_DB=tpch
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_password
+POSTGRES_PASSWORD=nhanpro12
 
-# LLM Provider
-ANTHROPIC_API_KEY=sk-ant-...   # Optional — falls back to pattern-based
+# LLM Provider (Groq — priority)
+GROQ_API_KEY=gsk_...          # Primary LLM
+# Gemini (fallback)
+GEMINI_API_KEY=...             # Secondary LLM
+# Anthropic (fallback)
+ANTHROPIC_API_KEY=sk-ant-...  # Tertiary LLM
 
 # App Settings
-APP_PORT=8501
-APP_THEME=light                 # light or dark
-MAX_QUERY_ROWS=100             # Rows shown in preview
-QUERY_TIMEOUT_SEC=30          # PostgreSQL statement timeout
+API_PORT=8008
+VITE_PORT=5173
+MAX_QUERY_ROWS=100
+QUERY_TIMEOUT_SEC=30
 ```

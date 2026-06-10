@@ -226,19 +226,19 @@ class SQLFeatureExtractor:
 
         # Determine level
         if score <= 3:
-            level = "Rất đơn giản"
+            level = "Very Simple"
             level_en = "Very Simple"
         elif score <= 7:
-            level = "Đơn giản"
+            level = "Simple"
             level_en = "Simple"
         elif score <= 12:
-            level = "Trung bình"
+            level = "Medium"
             level_en = "Medium"
         elif score <= 20:
-            level = "Phức tạp"
+            level = "Complex"
             level_en = "Complex"
         else:
-            level = "Rất phức tạp"
+            level = "Very Complex"
             level_en = "Very Complex"
 
         return {

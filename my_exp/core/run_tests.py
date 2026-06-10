@@ -226,15 +226,20 @@ def test_redundant_join():
 
     rule = get_rule("redundant_join_elimination")
     tests = [
-        ("Co JOIN — kiem tra usage",
+        # INNER JOIN — NEVER safe to remove (changes cardinality: rows without matches are dropped)
+        # Even though table 'b' columns aren't referenced, INNER JOIN filters out non-matching rows.
+        # This is correct behavior — the rule MUST NOT remove this join.
+        ("INNER JOIN — never removable (cardinality change)",
          "SELECT a.id, a.name FROM a JOIN b ON a.b_id = b.id WHERE a.status = 1;",
-         True, True),
-        ("OUTER JOIN",
+         True, False),
+        # LEFT JOIN where 'b' columns are completely unused — safe to remove.
+        # LEFT JOIN preserves row count of 'a' table, so removing it doesn't change cardinality.
+        ("LEFT JOIN unused table — removable",
          "SELECT a.id FROM a LEFT JOIN b ON a.id = b.id;",
-         True, False),  # AST giu nguyen LEFT JOIN
+         True, True),
         ("Co aggregate",
          "SELECT a.name, COUNT(a.id) FROM a JOIN b ON a.id = b.id GROUP BY a.name;",
-         True, False),  # AST giu nguyen vi co aggregate
+         True, False),  # INNER JOIN — aggregation-sensitive, kept intact
     ]
 
     passed = 0

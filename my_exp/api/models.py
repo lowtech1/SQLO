@@ -58,6 +58,58 @@ class RuleRecommendations(BaseModel):
     )
 
 
+# ── Rule Interactions ────────────────────────────────────────────────────────────
+
+class RuleInteractionItem(BaseModel):
+    type: str = Field(default="", description="Interaction type: conflict, order, missing_prereq, redundant")
+    rule_a: str = Field(default="", description="Primary rule involved")
+    rule_b: Optional[str] = Field(default=None, description="Secondary rule involved")
+    description: str = Field(default="", description="Human-readable description")
+    severity: str = Field(default="info", description="info | warning | error")
+    suggestion: str = Field(default="", description="How to resolve")
+
+
+class RuleInteractions(BaseModel):
+    has_conflicts: bool = Field(default=False)
+    has_order_issues: bool = Field(default=False)
+    has_missing_prereqs: bool = Field(default=False)
+    interactions: list[RuleInteractionItem] = Field(default_factory=list)
+    safe_sequence: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+# ── Query Complexity ─────────────────────────────────────────────────────────────
+
+class QueryComplexity(BaseModel):
+    level: str = Field(default="Unknown", description="Complexity level: O(n), O(n log n), O(n^2), O(n^3)")
+    score: float = Field(default=0.0, description="Complexity score 0-100")
+    label: str = Field(default="", description="Human-readable label")
+    factors: list[str] = Field(default_factory=list, description="Contributing factors")
+    recommended_rules: list[str] = Field(default_factory=list, description="Rules most effective for this complexity")
+    bottleneck_description: str = Field(default="", description="Plain-English bottleneck description")
+    complexity_explanation: str = Field(default="", description="Technical explanation")
+
+
+# ── Index Recommendation ────────────────────────────────────────────────────────
+
+class IndexRecommendation(BaseModel):
+    """
+    Index recommendation derived from EXPLAIN plan analysis.
+    Detects sequential scans on large tables and suggests CREATE INDEX.
+    """
+
+    table: str = Field(default="", description="Table name requiring index")
+    column: str = Field(default="", description="Column to index")
+    index_type: str = Field(default="btree", description="Index type: btree, hash, gist, etc.")
+    estimated_size: int = Field(default=0, description="Estimated row count in the table")
+    seq_scan_rows: int = Field(default=0, description="Rows scanned by the sequential scan")
+    cost_before: float = Field(default=0.0, description="Planner cost before index")
+    cost_after: float = Field(default=0.0, description="Estimated planner cost after index")
+    improvement_pct: float = Field(default=0.0, description="Estimated cost reduction percentage")
+    rationale: str = Field(default="", description="Why this index helps, referencing plan statistics")
+    sql: str = Field(default="", description="Full CREATE INDEX DDL statement")
+
+
 # ── Candidate models (legacy pipeline format) ─────────────────────────────────
 
 class PlanMetrics(BaseModel):
@@ -143,6 +195,26 @@ class AnalysisResult(BaseModel):
     rule_recommendations: Optional[RuleRecommendations] = Field(
         default=None,
         description="LLM/pattern reasoning + ordered rule recommendations",
+    )
+
+    rule_interactions: Optional[RuleInteractions] = Field(
+        default=None,
+        description="Cross-rule conflict, order, and prerequisite analysis",
+    )
+
+    explain_plan: Optional[dict] = Field(
+        default=None,
+        description="Raw PostgreSQL EXPLAIN ANALYZE JSON plan — powers the Visual EXPLAIN Tree",
+    )
+
+    complexity: Optional[QueryComplexity] = Field(
+        default=None,
+        description="Query complexity classification and analysis",
+    )
+
+    index_recommendations: list[IndexRecommendation] = Field(
+        default_factory=list,
+        description="Index recommendations from EXPLAIN plan analysis",
     )
 
     metrics: Optional[Metrics] = Field(

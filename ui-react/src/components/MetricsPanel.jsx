@@ -9,6 +9,7 @@
 
 import { Zap, Copy, Play } from "./Icons.jsx";
 import { SqlCodeBlock } from "./SqlCodeBlock.jsx";
+import { ExplainTree } from "./ExplainTree.jsx";
 import { useState } from "react";
 
 /** A single metric cell in the 2x2 grid. */
@@ -76,6 +77,7 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
 /** MetricsPanel — right sidebar */
 export function MetricsPanel({ data, decisions }) {
   const [copied, setCopied] = useState(false);
+  const [rightTab, setRightTab] = useState("metrics");
 
   // Find the best candidate by recommendation.best_candidate_id
   const best = data?.candidates?.find(
@@ -169,6 +171,24 @@ export function MetricsPanel({ data, decisions }) {
           </button>
         </div>
       </div>
+
+      {/* ── EXPLAIN Tree ─────────────────────────────────────── */}
+      {data?.explain_plan && (
+        <div className="px-4 pt-4 pb-4 border-b border-white/5">
+          <div className="flex items-center gap-2 mb-3">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />
+            </svg>
+            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+              Execution Plan
+            </h3>
+          </div>
+          <div className="rounded-xl overflow-hidden border border-white/5">
+            <ExplainTree planData={data.explain_plan} />
+          </div>
+        </div>
+      )}
 
       {/* ── Metrics Dashboard ─────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4">

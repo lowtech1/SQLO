@@ -14,10 +14,13 @@ from datetime import datetime
 
 from my_exp.core.multi_rewrite_engine import MultiRewriteEngine
 from my_exp.core.sql_analyzer import SQLFeatureExtractor
-from my_exp.core.rules import get_all_rules, get_rule
+from my_exp.core.rules import get_rule
 from my_exp.dss.llm_rule_selector import LLMRuleSelector
 from my_exp.dss.semantic_checker import SemanticChecker
 from my_exp.dss.plan_comparator import PlanComparator
+from my_exp.dss.index_advisor import IndexAdvisor
+from my_exp.core.query_complexity import QueryComplexityClassifier
+from my_exp.core.rule_interaction import detect_interactions
 
 
 class OptimizationPipeline:
@@ -41,6 +44,8 @@ class OptimizationPipeline:
         self.rule_selector = LLMRuleSelector(use_llm=use_llm)
         self.semantic_checker = SemanticChecker(dbname=dbname)
         self.plan_comparator = PlanComparator(dbname=dbname)
+        self.index_advisor = IndexAdvisor()
+        self.complexity_classifier = QueryComplexityClassifier()
 
     def analyze(self, sql: str) -> dict:
         """Step 1: Analyze SQL query."""
@@ -55,9 +60,9 @@ class OptimizationPipeline:
             "summary": summary,
         }
 
-    def select_rules(self, sql: str) -> dict:
+    def select_rules(self, sql: str, plan_context: str = "") -> dict:
         """Step 2: Get rule recommendations."""
-        return self.rule_selector.select_rules(sql)
+        return self.rule_selector.select_rules(sql, plan_context=plan_context)
 
     def generate_rewrites(self, sql: str, max_candidates: int = 5) -> list:
         """Step 3: Generate rewrite candidates."""
@@ -143,28 +148,178 @@ class OptimizationPipeline:
 
         return min(score, 1.0)
 
+    def _summarize_plan(self, plan_data: dict) -> str:
+        """
+        Extract bottleneck summary from EXPLAIN JSON plan for LLM context.
+        Returns a human-readable plan summary.
+        """
+        if not plan_data:
+            return ""
+
+        plan = plan_data.get("Plan", {})
+        lines = []
+
+        # Top-level metrics
+        total_cost = plan.get("Total Cost", 0)
+        est_rows = plan.get("Plan Rows", 0)
+        total_time = plan.get("Actual Total Time", 0)
+        lines.append(f"Total Cost: {total_cost:.1f} | Estimated Rows: {est_rows} | Execution Time: {total_time:.2f}ms")
+
+        # Bottleneck nodes — recursively traverse plan tree
+        def extract_bottlenecks(node: dict, depth: int = 0) -> list:
+            bottlenecks = []
+            node_type = node.get("Node Type", "")
+            cost = node.get("Total Cost", 0)
+            rows = node.get("Plan Rows", 0)
+            actual_time = node.get("Actual Total Time", 0)
+            rel = node.get("Relation Name", "")
+
+            # Skip trivial nodes
+            if cost > 0 and depth <= 3:
+                label = f"{'  ' * depth}{node_type}"
+                if rel:
+                    label += f" on {rel}"
+                label += f" (cost={cost:.0f}, rows={rows}"
+                if actual_time > 0:
+                    label += f", time={actual_time:.2f}ms"
+                label += ")"
+                bottlenecks.append(label)
+
+            # Check for specific bottlenecks
+            if node_type in ("Seq Scan", "Parallel Seq Scan"):
+                filter_str = node.get("Filter", "")
+                if filter_str:
+                    bottlenecks.append(f"  {'  ' * depth}  -> Filter: {filter_str[:80]}")
+
+            # Recurse into children
+            for key in ("Plans", "Inner", "Outer", "Parent Relationship"):
+                child = node.get(key)
+                if isinstance(child, dict):
+                    bottlenecks.extend(extract_bottlenecks(child, depth + 1))
+                elif isinstance(child, list):
+                    for c in child:
+                        if isinstance(c, dict):
+                            bottlenecks.extend(extract_bottlenecks(c, depth + 1))
+
+            return bottlenecks
+
+        lines.extend(extract_bottlenecks(plan))
+
+        # Key plan statistics
+        buf_stats = plan_data.get("Buffers", {})
+        shared_hit = buf_stats.get("shared_hit", 0) if isinstance(buf_stats, dict) else 0
+        shared_read = buf_stats.get("shared_read", 0) if isinstance(buf_stats, dict) else 0
+
+        if shared_read > 0 or shared_hit > 0:
+            lines.append(f"Buffers: {shared_hit} hits, {shared_read} reads")
+
+        return "\n".join(lines[:40])  # Cap at 40 lines for prompt length
+
+    def explain_query(self, sql: str) -> Optional[dict]:
+        """
+        Get EXPLAIN ANALYZE output for a SQL query.
+        Returns the plan JSON dict or None on error.
+        """
+        try:
+            import psycopg2
+            import os
+            from dotenv import load_dotenv
+            load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
+            conn = psycopg2.connect(
+                host=os.getenv("POSTGRES_HOST", "localhost"),
+                port=int(os.getenv("POSTGRES_PORT", "5432")),
+                dbname=self.dbname or os.getenv("POSTGRES_DB", "postgres"),
+                user=os.getenv("POSTGRES_USER", "postgres"),
+                password=os.getenv("POSTGRES_PASSWORD", ""),
+                connect_timeout=10,
+            )
+            conn.autocommit = True
+            cur = conn.cursor()
+            cur.execute(f"SET statement_timeout = '60s'")
+            cur.execute(f"EXPLAIN (ANALYZE, FORMAT JSON, COSTS, TIMING, BUFFERS) {sql}")
+            result = cur.fetchone()
+            cur.close()
+            conn.close()
+            if result and result[0] is not None:
+                # psycopg2 may return JSON as dict/list automatically
+                plan_data = result[0]
+                if isinstance(plan_data, str):
+                    import json
+                    plan_data = json.loads(plan_data)
+                return plan_data[0] if isinstance(plan_data, list) else plan_data
+            return None
+        except Exception:
+            return None
+
     def run_full(self, sql: str, max_candidates: int = 5) -> dict:
         """
-        Run the complete optimization pipeline.
+        Run the complete optimization pipeline with EXPLAIN-guided LLM.
 
-        Returns comprehensive analysis with all candidates ranked.
+        Pipeline order:
+        1. Analyze SQL structure
+        2. Get EXPLAIN ANALYZE of original query  ← NEW
+        3. LLM rule selection WITH plan context   ← KEY IMPROVEMENT
+        4. Generate rewrite candidates
+        5. Compare execution plans
+        6. Semantic verification
+        7. Final recommendation
         """
         # Step 1: Analyze
         analysis = self.analyze(sql)
 
-        # Step 2: Rule recommendations
-        rule_recs = self.select_rules(sql)
+        # Step 2: Get EXPLAIN plan of original (NEW — feeds LLM context)
+        plan_json = self.explain_query(sql)
+        plan_summary = self._summarize_plan(plan_json) if plan_json else ""
 
-        # Step 3: Generate candidates
+        # Step 2b: Query complexity analysis (NEW)
+        complexity = self.complexity_classifier.classify(sql, features=analysis.get("features"), plan_data=plan_json)
+        complexity_result = {
+            "level": complexity.level.value,
+            "score": complexity.score,
+            "label": complexity.label,
+            "factors": complexity.factors,
+            "recommended_rules": complexity.recommended_rules,
+            "bottleneck_description": complexity.bottleneck_description,
+            "complexity_explanation": complexity.complexity_explanation,
+        }
+
+        # Step 3: Rule recommendations (WITH plan context)
+        rule_recs = self.select_rules(sql, plan_context=plan_summary)
+
+        # Step 3b: Cross-rule interaction analysis
+        selected_rules = [r.get("rule") for r in (rule_recs.get("recommendations") or [])]
+        interaction_report = detect_interactions(selected_rules)
+
+        # Step 3c: Index recommendations from plan analysis
+        index_recs = []
+        if plan_json:
+            raw_recs = self.index_advisor.analyze_plan(plan_json)
+            index_recs = [
+                {
+                    "table": r.table_name,
+                    "column": r.column_name,
+                    "index_type": r.index_type,
+                    "estimated_size": r.estimated_size,
+                    "seq_scan_rows": r.seq_scan_rows,
+                    "cost_before": round(r.cost_before, 2),
+                    "cost_after": round(r.cost_estimate_after, 2),
+                    "improvement_pct": round(r.improvement_pct, 1),
+                    "rationale": r.rationale,
+                    "sql": r.sql,
+                }
+                for r in raw_recs[:5]  # Top 5 recommendations
+            ]
+
+        # Step 4: Generate candidates
         candidates = self.generate_rewrites(sql, max_candidates)
 
-        # Step 4: Compare plans (requires DB connection)
+        # Step 5: Compare plans (requires DB connection)
         candidates = self.compare_plans(sql, candidates)
 
-        # Step 5: Semantic verification (requires DB connection)
+        # Step 6: Semantic verification (requires DB connection)
         candidates = self.verify_semantic(sql, candidates)
 
-        # Step 6: Recommendation
+        # Step 7: Recommendation
         recommendation = self.recommend(sql, candidates)
 
         return {
@@ -173,6 +328,27 @@ class OptimizationPipeline:
             "original_sql": sql,
             "analysis": analysis,
             "rule_recommendations": rule_recs,
+            "explain_plan": plan_json,  # Raw plan JSON for Visual EXPLAIN Tree
+            "rule_interactions": {
+                "has_conflicts": interaction_report.has_conflicts,
+                "has_order_issues": interaction_report.has_order_issues,
+                "has_missing_prereqs": interaction_report.has_missing_prereqs,
+                "interactions": [
+                    {
+                        "type": i.interaction_type,
+                        "rule_a": i.rule_a,
+                        "rule_b": i.rule_b,
+                        "description": i.description,
+                        "severity": i.severity,
+                        "suggestion": i.suggestion,
+                    }
+                    for i in interaction_report.interactions
+                ],
+                "safe_sequence": interaction_report.safe_sequence,
+                "warnings": interaction_report.warnings,
+            },
+            "index_recommendations": index_recs,
+            "complexity": complexity_result,
             "candidates": candidates,
             "recommendation": recommendation,
             "metadata": {

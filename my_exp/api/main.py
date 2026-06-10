@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import os
+from typing import Optional
 import asyncio
 import traceback
 import uuid
@@ -34,6 +35,10 @@ from my_exp.api.models import (
     PlanMetrics,
     PlanComparison,
     Recommendation,
+    IndexRecommendation,
+    QueryComplexity,
+    RuleInteractions,
+    RuleInteractionItem,
 )
 
 
@@ -215,6 +220,31 @@ def _make_mock_result(raw_sql: str) -> AnalysisResult:
 # Maps the raw legacy pipeline output dict → Pydantic AnalysisResult.
 # Every field uses .get() with a fallback so missing keys never raise KeyError.
 
+
+def _map_rule_interactions(raw: dict) -> Optional[RuleInteractions]:
+    if not raw:
+        return None
+    return RuleInteractions(
+        has_conflicts=raw.get("has_conflicts", False),
+        has_order_issues=raw.get("has_order_issues", False),
+        has_missing_prereqs=raw.get("has_missing_prereqs", False),
+        interactions=[
+            RuleInteractionItem(
+                type=i.get("type", ""),
+                rule_a=i.get("rule_a", ""),
+                rule_b=i.get("rule_b"),
+                description=i.get("description", ""),
+                severity=i.get("severity", "info"),
+                suggestion=i.get("suggestion", ""),
+            )
+            for i in (raw.get("interactions") or [])
+        ],
+        safe_sequence=raw.get("safe_sequence") or [],
+        warnings=raw.get("warnings") or [],
+    )
+
+
+
 def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> AnalysisResult:
     """
     Adapts the legacy OptimizationPipeline.run_full() output
@@ -347,11 +377,23 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
         confidence=rec_raw.get("confidence") or 0.0,
     )
 
+    # ── Index recommendations ─────────────────────────────────────
+    index_recs_raw = raw_result.get("index_recommendations") or []
+    index_recs = [
+        IndexRecommendation(**r) if isinstance(r, dict) else r
+        for r in index_recs_raw
+        if isinstance(r, (dict, IndexRecommendation))
+    ]
+
     return AnalysisResult(
         query_id=query_id,
         timestamp=raw_result.get("timestamp", datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")),
         original_sql=original_sql,
         rule_recommendations=rule_recommendations,
+        rule_interactions=_map_rule_interactions(raw_result.get("rule_interactions")),
+        explain_plan=raw_result.get("explain_plan"),
+        index_recommendations=index_recs,
+        complexity=QueryComplexity(**raw_result.get("complexity", {})) if raw_result.get("complexity") else None,
         metrics=metrics,
         candidates=candidates,
         recommendation=recommendation,

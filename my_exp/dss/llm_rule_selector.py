@@ -33,7 +33,7 @@ RULE_DESCRIPTIONS = {
 }
 
 
-def build_llm_prompt(sql: str, features: dict, applicable_rules: list) -> str:
+def build_llm_prompt(sql: str, features: dict, applicable_rules: list, plan_context: str = "") -> str:
     """Build LLM prompt for rule recommendation."""
     rule_list = "\n".join([
         f'  - {name}: {RULE_DESCRIPTIONS.get(name, "")}'
@@ -41,6 +41,21 @@ def build_llm_prompt(sql: str, features: dict, applicable_rules: list) -> str:
     ])
 
     complexity = features.get("complexity", {})
+
+    plan_section = f"""
+## EXECUTION PLAN ANALYSIS (from PostgreSQL EXPLAIN ANALYZE)
+{'-' * 50}
+{plan_context if plan_context else 'No execution plan available.'}
+{'-' * 50}
+
+Based on the plan above, identify which operations are bottlenecks (e.g., Seq Scan on large tables,
+high-cost Hash Join nodes, large intermediate result sizes). Then recommend rules that specifically
+address those bottlenecks. For example:
+- Seq Scan on a large table with a filter → predicate_pushdown or index recommendation
+- Nested Loop with large outer row count → join_reordering or filter_into_join
+- Subquery in SELECT → subquery_unnesting
+- Full table scan before aggregation → aggregation_pushdown
+""" if plan_context else ""
 
     prompt = f"""You are an expert SQL query optimizer. Analyze the SQL and recommend optimization rules.
 
@@ -59,22 +74,23 @@ SQL: {sql}
 - Has ORDER BY: {features.get('has_order_by', False)}
 - Has LIMIT: {features.get('has_limit', False)}
 
+{plan_section}
+
 ## AVAILABLE RULES (use EXACT rule IDs from this list)
 {rule_list}
 
 ## REQUIREMENTS
-1. Analyze the SQL structure above.
-2. Choose the TOP-3 most applicable rules (or fewer if not many apply).
-3. For each rule, provide:
+1. Analyze the SQL structure{", the execution plan bottlenecks," if plan_context else " and"} and choose the TOP-3 most applicable rules (or fewer if not many apply).
+2. For each rule, provide:
    - **rule**: EXACT rule ID from the list above (e.g., "projection_pruning", "join_reordering"). Do NOT use Vietnamese or generic names.
    - **priority**: 1 (highest), 2, or 3
-   - **reason**: Why this rule applies to this specific SQL (1-2 sentences)
+   - **reason**: Why this rule applies to this specific SQL, referencing plan bottlenecks if available (1-2 sentences)
    - **expected_benefit**: Specific benefit with approximate % reduction if possible
    - **confidence**: High / Medium / Low
    - **before_snippet**: The exact SQL fragment that WILL BE CHANGED (use empty string if rule doesn't produce a visible fragment)
    - **after_snippet**: The exact SQL fragment AFTER the rewrite is applied (use empty string if no visible change)
    - **warning**: If semantic equivalence may be affected, note it here
-4. Output in English only.
+3. Output in English only.
 
 ## OUTPUT FORMAT (JSON)
 {{
@@ -82,15 +98,15 @@ SQL: {sql}
     {{
       "rule": "projection_pruning",
       "priority": 1,
-      "reason": "SELECT * retrieves all 8 columns from customer but only 2 are used in the output.",
-      "expected_benefit": "I/O reduction: ~75% fewer columns scanned (8 → 2).",
+      "reason": "SELECT * retrieves all 8 columns from customer but only 2 are used in the output. Plan shows Seq Scan with high cost.",
+      "expected_benefit": "I/O reduction: ~75% fewer columns scanned (8 columns → 2).",
       "confidence": "High",
       "before_snippet": "SELECT *",
       "after_snippet": "SELECT c_custkey, c_name",
       "warning": null
     }}
   ],
-  "overall_analysis": "This query joins 2 tables with a filter condition. Two optimizations are recommended..."
+  "overall_analysis": "Plan analysis: [brief summary of plan bottlenecks]. Recommended rules: [list]."
 }}
 """
     return prompt
@@ -194,7 +210,7 @@ class LLMRuleSelector:
         self.scorer = RuleApplicabilityScorer()
         self.pattern_rules = get_all_rules()
 
-    def select_rules(self, sql: str) -> dict:
+    def select_rules(self, sql: str, plan_context: str = "") -> dict:
         """
         Select optimization rules for a SQL query.
 
@@ -215,7 +231,7 @@ class LLMRuleSelector:
         if not self.use_llm:
             return self._pattern_selection(sql, features, applicable_rules, scores)
 
-        prompt = build_llm_prompt(sql, features, applicable_rules)
+        prompt = build_llm_prompt(sql, features, applicable_rules, plan_context=plan_context)
         response = call_llm(prompt)
         parsed = parse_llm_response(response)
 
