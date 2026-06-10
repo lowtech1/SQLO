@@ -306,11 +306,9 @@ def map_pipeline_result(query_id: str, original_sql: str, raw_result: dict) -> A
                     ),
                 ),
                 comparison=PlanComparison(
-                    # Store as positive when optimized is better (opt < orig).
-                    # raw comp value: positive = opt is worse, negative = opt is better.
-                    cost_improvement_pct=-comp.get("cost_improvement_pct", 0.0),
-                    io_improvement_pct=-comp.get("io_improvement_pct", 0.0),
-                    cpu_improvement_pct=-comp.get("cpu_improvement_pct", 0.0),
+                    cost_improvement_pct=comp.get("cost_improvement_pct", 0.0),
+                    io_improvement_pct=comp.get("io_improvement_pct", 0.0),
+                    cpu_improvement_pct=comp.get("cpu_improvement_pct", 0.0),
                 ) if comp else None,
             ) if plan else None,
             confidence=c.get("confidence"),

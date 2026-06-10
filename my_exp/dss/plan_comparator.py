@@ -138,6 +138,7 @@ def compare_plans(original_plan: dict, rewritten_plan: dict) -> dict:
             "nodes": rew_metrics["nodes"],
         },
         "comparison": {
+            # Positive = optimized is better (orig > rew), Negative = optimized is worse
             "cost_improvement_pct": round(cost_ratio, 2),
             "time_improvement_pct": round(time_ratio, 2),
             "verdict": verdict,

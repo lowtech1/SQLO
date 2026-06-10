@@ -503,9 +503,9 @@ function DatabaseSchemaPanel() {
               expanded: false,
               columns: table.columns.map(c => ({
                 name: c.name,
-                dataType: c.type,
-                isPK: c.isPK,
-                isFK: c.isFK,
+                dataType: c.data_type || c.type || 'unknown',
+                isPK: c.is_pk || c.isPK || false,
+                isFK: c.is_fk || c.isFK || false,
               })),
             }}
           />

@@ -1,4 +1,3 @@
-import sqlglot
 from sqlglot import expressions as exp
 import sys
 import os
@@ -33,13 +32,27 @@ class ASTRedundantJoinElimination:
         """
         Validates whether a JOIN is safe to remove without altering query semantics.
         """
-        # 1. Reject OUTER, LEFT, RIGHT, FULL joins
+        # 0. CRITICAL: Reject SELECT * — it expands to ALL columns of ALL joined tables.
+        #    Removing a JOIN changes the result schema (fewer columns) → NOT equivalent.
+        for expr in select_node.expressions:
+            if isinstance(expr, exp.Star):
+                return False  # SELECT * includes joined table columns — unsafe to remove
+
+        # 1. CRITICAL: Reject all INNER joins.
+        #    INNER JOIN changes result cardinality — rows without matches are dropped.
+        #    e.g. FROM customer c JOIN orders o ON ... WHERE c_mktsegment='AUTO'
+        #         returns only customers who HAVE orders (19K rows).
+        #    Removing the JOIN returns ALL matching customers (29K rows) — DIFFERENT.
+        #    This is UNSAFE even if joined columns aren't referenced in SELECT/WHERE.
+        #    Only OUTER joins (which preserve rows) are candidates for removal.
         side = join_node.args.get("side")
         kind = join_node.args.get("kind")
-        if side and side.upper() in ("LEFT", "RIGHT", "FULL"):
-            return False
-        if kind and kind.upper() == "OUTER":
-            return False
+        if side and side.upper() not in ("LEFT", "RIGHT", "FULL"):
+            return False  # INNER join — never remove
+        if kind and kind.upper() == "CROSS":
+            return False  # CROSS join — never remove
+        if (not side) and (not kind or kind.upper() == "INNER"):
+            return False  # Plain JOIN = INNER — never remove
 
         # 2. Reject if the query contains Aggregations
         if select_node.args.get("group") or select_node.args.get("having"):
@@ -101,6 +114,37 @@ class ASTRedundantJoinElimination:
             for col in sort_node.find_all(exp.Column):
                 if is_col_from_joined_table(col):
                     return False
+
+        # 6. CRITICAL: The WHERE clause of the OUTER select must not reference
+        #    tables that are only reachable via this join. Removing the join
+        #    would turn those filters into no-ops or change result row count.
+        #    e.g. FROM a JOIN b ON ... WHERE b.status = 1  →  WHERE 1=1
+        #    If the WHERE references ANY table other than the base FROM table
+        #    or already-joined tables, we cannot safely remove this join.
+        where = select_node.args.get("where")
+        if where:
+            # Collect all tables referenced in WHERE
+            where_tables = set()
+            for col in where.find_all(exp.Column):
+                if col.table:
+                    where_tables.add(col.table.lower())
+
+            # Collect all tables that will remain in the query
+            remaining_tables = set()
+            for j in select_node.args.get("joins", []):
+                if j is not join_node:
+                    jt = j.this
+                    if isinstance(jt, exp.Table):
+                        remaining_tables.add(jt.alias.lower() if jt.alias else jt.name.lower())
+            from_ = select_node.args.get("from_")
+            if from_ and isinstance(from_.this, exp.Table):
+                remaining_tables.add(
+                    from_.this.alias.lower() if from_.this.alias else from_.this.name.lower()
+                )
+
+            # If WHERE references a table that only this join provides, reject
+            if where_tables - remaining_tables - {table_alias}:
+                return False
 
         return True
 

@@ -22,14 +22,14 @@ from my_exp.core.sql_analyzer import SQLFeatureExtractor, RuleApplicabilityScore
 
 
 RULE_DESCRIPTIONS = {
-    "predicate_pushdown": "Day dieu kien WHERE tu query ngoai vao subquery trong FROM clause de giam so dong trung gian.",
-    "projection_pruning": "Loai bo cot khong can thiet khoi SELECT de giam I/O bandwidth.",
-    "join_reordering": "Sap xep lai thu tu JOIN theo kich thuoc bang de giam intermediate row explosion.",
-    "subquery_unnesting": "Chuyen IN/EXISTS subquery thanh JOIN de tranh Nested Loop, tang toc do bang Hash Join.",
-    "aggregation_pushdown": "Day GROUP BY/aggregate xuong subquery de giam so dong truoc khi aggregate.",
-    "redundant_join_elimination": "Loai bo JOIN ma bang duoc JOIN khong duoc su dung trong SELECT/WHERE/GROUP/ORDER.",
-    "filter_into_join": "Day WHERE filter vao JOIN ON clause de filter chay cung voi JOIN operation.",
-    "limit_pushdown": "Day LIMIT/OFFSET xuong subquery de tranh sort toan bo du lieu.",
+    "predicate_pushdown": "Move WHERE conditions from outer query into subquery in FROM clause to reduce intermediate rows.",
+    "projection_pruning": "Remove unnecessary columns from SELECT to reduce I/O bandwidth.",
+    "join_reordering": "Reorder JOIN sequence by table size to reduce intermediate row explosion.",
+    "subquery_unnesting": "Convert IN/EXISTS subquery to JOIN to avoid Nested Loop, improve with Hash Join.",
+    "aggregation_pushdown": "Push GROUP BY/aggregate down into subquery to reduce rows before aggregation.",
+    "redundant_join_elimination": "Remove JOINs where joined table columns are not used in SELECT/WHERE/GROUP/ORDER.",
+    "filter_into_join": "Push WHERE filter into JOIN ON clause so filter runs with JOIN operation.",
+    "limit_pushdown": "Push LIMIT/OFFSET down to subquery to avoid sorting all data.",
 }
 
 
@@ -41,51 +41,56 @@ def build_llm_prompt(sql: str, features: dict, applicable_rules: list) -> str:
     ])
 
     complexity = features.get("complexity", {})
-    structural = features.get("structural", {})
 
-    prompt = f"""Ban la mot chuyen gia toi uu hoa truy van SQL. Nhiem vu: phan tich cau truc SQL va goi y cac quy tac toi uu hoa phu hop.
+    prompt = f"""You are an expert SQL query optimizer. Analyze the SQL and recommend optimization rules.
 
-## CAU TRUC SQL
+## SQL STRUCTURE
 {'-' * 50}
 SQL: {sql}
 {'-' * 50}
 
-## FEATURES
-- Do phuc tap: {complexity.get('level', 'N/A')} (score: {complexity.get('score', 0)})
-- So bang: {features.get('table_count', 0)}
-- So JOIN: {features.get('join_count', 0)}
-- So subquery: {features.get('subquery_count', 0)}
-- Co aggregation: {features.get('has_aggregation', False)}
-- Co GROUP BY: {features.get('has_group_by', False)}
-- Co ORDER BY: {features.get('has_order_by', False)}
-- Co LIMIT: {features.get('has_limit', False)}
+## SQL FEATURES
+- Complexity: {complexity.get('level', 'N/A')} (score: {complexity.get('score', 0)})
+- Tables used: {features.get('table_count', 0)}
+- JOINs: {features.get('join_count', 0)}
+- Subqueries: {features.get('subquery_count', 0)}
+- Has aggregation: {features.get('has_aggregation', False)}
+- Has GROUP BY: {features.get('has_group_by', False)}
+- Has ORDER BY: {features.get('has_order_by', False)}
+- Has LIMIT: {features.get('has_limit', False)}
 
-## CAC QUY TAC CO SAN
+## AVAILABLE RULES (use EXACT rule IDs from this list)
 {rule_list}
 
-## YEU CAU
-1. Phan tich cau truc SQL tren
-2. Chon TOP-3 quy tac phu hop nhat (hoac it hon neu khong co nhieu)
-3. Moi quy tac can co:
-   - Ly do chon: Giai thich TAI SAO quy tac nay duoc chon
-   - Loi ich mong doi: Hau qua cua viec ap dung quy tac
-   - Muc do tu van: Cao / Trung binh / Thap
-   - Thu tu uu tien: 1 (cao nhat), 2, 3
-4. Giai thich bang TIENG VIET, ngac nhien va de hieu
+## REQUIREMENTS
+1. Analyze the SQL structure above.
+2. Choose the TOP-3 most applicable rules (or fewer if not many apply).
+3. For each rule, provide:
+   - **rule**: EXACT rule ID from the list above (e.g., "projection_pruning", "join_reordering"). Do NOT use Vietnamese or generic names.
+   - **priority**: 1 (highest), 2, or 3
+   - **reason**: Why this rule applies to this specific SQL (1-2 sentences)
+   - **expected_benefit**: Specific benefit with approximate % reduction if possible
+   - **confidence**: High / Medium / Low
+   - **before_snippet**: The exact SQL fragment that WILL BE CHANGED (use empty string if rule doesn't produce a visible fragment)
+   - **after_snippet**: The exact SQL fragment AFTER the rewrite is applied (use empty string if no visible change)
+   - **warning**: If semantic equivalence may be affected, note it here
+4. Output in English only.
 
 ## OUTPUT FORMAT (JSON)
 {{
   "recommendations": [
     {{
-      "rule": "ten_quy_tac",
+      "rule": "projection_pruning",
       "priority": 1,
-      "reason": "Ly do chon quy tac nay",
-      "expected_benefit": "Loi ich cu the",
-      "confidence": "Cao/Trung binh/Thap",
-      "warning": "Canh bao neu co (VD: semantic thay doi, co risk)"
+      "reason": "SELECT * retrieves all 8 columns from customer but only 2 are used in the output.",
+      "expected_benefit": "I/O reduction: ~75% fewer columns scanned (8 → 2).",
+      "confidence": "High",
+      "before_snippet": "SELECT *",
+      "after_snippet": "SELECT c_custkey, c_name",
+      "warning": null
     }}
   ],
-  "overall_analysis": "Tong quan 1-2 cau ve cau truc SQL nay"
+  "overall_analysis": "This query joins 2 tables with a filter condition. Two optimizations are recommended..."
 }}
 """
     return prompt
@@ -177,12 +182,11 @@ def parse_llm_response(response: str) -> dict:
 class LLMRuleSelector:
     """
     LLM-powered rule selector.
-    Uses Claude Opus 4.6 to analyze SQL and recommend optimization rules.
+    Uses Groq (Llama 3.3 70B) to analyze SQL and recommend optimization rules.
     Falls back to pattern-based selection if LLM is unavailable.
     """
 
     def __init__(self, use_llm: bool = True, model: str = "llama-3.3-70b-versatile"):
-        # LLM available if any API key is set (Groq, Gemini, or Anthropic)
         has_llm_key = bool(os.getenv("GROQ_API_KEY") or os.getenv("GEMINI_API_KEY") or os.getenv("ANTHROPIC_API_KEY"))
         self.use_llm = use_llm and has_llm_key
         self.model = model
@@ -201,7 +205,6 @@ class LLMRuleSelector:
               - features: SQL features
               - raw_llm_response: (if LLM was used)
         """
-        # Extract features
         features = self.extractor.extract(sql)
         scores, _, _ = self.scorer.score(sql)
         applicable_rules = [
@@ -209,11 +212,9 @@ class LLMRuleSelector:
             if result["applicable"]
         ]
 
-        # Fallback: pattern-based
         if not self.use_llm:
             return self._pattern_selection(sql, features, applicable_rules, scores)
 
-        # Try LLM
         prompt = build_llm_prompt(sql, features, applicable_rules)
         response = call_llm(prompt)
         parsed = parse_llm_response(response)
@@ -228,7 +229,6 @@ class LLMRuleSelector:
                 "raw_llm_response": response,
             }
         else:
-            # Fall back to pattern-based
             return self._pattern_selection(sql, features, applicable_rules, scores)
 
     def _pattern_selection(self, sql: str, features: dict, applicable_rules: list, scores: dict = None) -> dict:
@@ -238,17 +238,16 @@ class LLMRuleSelector:
         recommendations = []
         priority = 1
 
-        confidence_map = {"high": "Cao", "medium": "Trung binh", "low": "Thap"}
+        confidence_map = {"high": "High", "medium": "Medium", "low": "Low"}
 
         for rule_name in applicable_rules:
             result = scores.get(rule_name, {})
-            confidence = confidence_map.get(result.get("confidence", "medium"), "Trung binh")
             recommendations.append({
                 "rule": rule_name,
                 "priority": priority,
-                "reason": result.get("reason", "Phat hien co hoi toi uu"),
-                "expected_benefit": result.get("benefit", "Giam chi phi thuc thi"),
-                "confidence": confidence,
+                "reason": result.get("reason", f"Pattern detected: applicable rule {rule_name}"),
+                "expected_benefit": result.get("benefit", f"Applies {rule_name} to reduce execution cost"),
+                "confidence": confidence_map.get(result.get("confidence", "medium"), "Medium"),
                 "warning": None,
             })
             priority += 1
@@ -256,7 +255,7 @@ class LLMRuleSelector:
         return {
             "method": "pattern",
             "recommendations": recommendations,
-            "overall_analysis": f"Phat hien {len(applicable_rules)} co hoi toi uu. Do phuc tap: {features.get('complexity', {}).get('level', 'N/A')}.",
+            "overall_analysis": f"Found {len(applicable_rules)} optimization opportunities. Complexity: {features.get('complexity', {}).get('level', 'N/A')}.",
             "features": features,
             "applicable_rules": applicable_rules,
             "raw_llm_response": None,

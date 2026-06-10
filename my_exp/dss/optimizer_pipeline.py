@@ -85,11 +85,12 @@ class OptimizationPipeline:
             plan = c.get("plan_comparison", {})
             comp = plan.get("comparison") if plan else None
 
-            if not sem.get("equivalent", False) and not c.get("is_original"):
-                # Non-equivalent — lower priority
-                score = -100
-            elif c.get("is_original"):
-                score = -50  # Original always considered
+            if c.get("is_original"):
+                # Original query is always a valid baseline — keep it as fallback
+                score = -999
+            elif not sem.get("equivalent", False):
+                # Skip rewrites that changed semantics
+                continue
             elif comp:
                 score = comp.get("cost_improvement_pct", 0)
             else:
@@ -97,7 +98,8 @@ class OptimizationPipeline:
 
             valid.append({**c, "_rank_score": score})
 
-        # Sort by score descending
+        # Sort by score descending (highest improvement = best optimization)
+        # Original has score -999 so it only wins when ALL rewrites are invalid
         valid.sort(key=lambda x: x["_rank_score"], reverse=True)
 
         if not valid:

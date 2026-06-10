@@ -189,7 +189,7 @@ export function MetricsPanel({ data, decisions }) {
                 opt={rewMetrics?.estimated_time_ms ?? topMetrics?.execution_time_ms}
                 unit="ms"
                 imp={fmt(origMetrics?.estimated_time_ms && rewMetrics?.estimated_time_ms
-                  ? ((origMetrics.estimated_time_ms - rewMetrics.estimated_time_ms) / origMetrics.estimated_time_ms) * -100
+                  ? ((origMetrics.estimated_time_ms - rewMetrics.estimated_time_ms) / origMetrics.estimated_time_ms) * 100
                   : null)}
                 improved={(rewMetrics?.estimated_time_ms ?? Infinity) <= (origMetrics?.estimated_time_ms ?? 0)}
               />
@@ -225,7 +225,7 @@ export function MetricsPanel({ data, decisions }) {
                 <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
                   Total Improvement
                 </span>
-                <span className={`text-[16px] font-bold font-mono ${totalCostImp <= 0 ? "text-green-400" : "text-red-400"}`}>
+                <span className={`text-[16px] font-bold font-mono ${totalCostImp > 0 ? "text-green-400" : "text-red-400"}`}>
                   {fmt(totalCostImp)}
                 </span>
               </div>

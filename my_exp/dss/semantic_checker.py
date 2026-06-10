@@ -131,6 +131,34 @@ def check_equivalence(
                 "comparison_method": "row_count",
             }
 
+        # CRITICAL: Check column compatibility before comparing rows.
+        # SELECT * JOIN produces more columns than SELECT single_table.
+        # We must compare column counts as a first-pass safety gate.
+        if orig_rows and rew_rows:
+            # orig_rows are dicts (from RealDictCursor), rew_rows are tuples
+            if isinstance(orig_rows[0], dict) and isinstance(rew_rows[0], tuple):
+                orig_col_count = len(orig_rows[0])
+                rew_col_count = len(rew_rows[0])
+            elif isinstance(orig_rows[0], dict) and isinstance(rew_rows[0], dict):
+                orig_col_count = len(orig_rows[0])
+                rew_col_count = len(rew_rows[0])
+            elif isinstance(orig_rows[0], tuple) and isinstance(rew_rows[0], tuple):
+                orig_col_count = len(orig_rows[0])
+                rew_col_count = len(rew_rows[0])
+            else:
+                orig_col_count = 0
+                rew_col_count = 0
+
+            if orig_col_count != rew_col_count:
+                return {
+                    "equivalent": False,
+                    "confidence": 0.99,
+                    "error": f"Column count mismatch: {orig_col_count} cols vs {rew_col_count} cols. Query produces different result schema.",
+                    "row_count_original": n_orig,
+                    "row_count_rewritten": n_rew,
+                    "comparison_method": "column_count",
+                }
+
         # Both empty — equivalent
         if n_orig == 0:
             return {
