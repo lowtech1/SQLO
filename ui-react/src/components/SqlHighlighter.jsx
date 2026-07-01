@@ -139,21 +139,18 @@ function tokenize(sql) {
  * @param {string} sql
  * @param {string} [theme] - 'dark' (default) or 'light'
  */
-export function SqlHighlighter({ sql = "", theme = "dark" }) {
+export function SqlHighlighter({ sql = "" }) {
   if (!sql) {
     return (
-      <span className="text-text-muted italic text-xs">
+      <span className="text-muted-themed italic text-xs">
         (empty)
       </span>
     );
   }
 
   const tokens = tokenize(sql);
-  const isDark = theme === "dark";
 
-  const baseClass = isDark
-    ? "text-[#E6EDF3] font-mono text-xs leading-relaxed"
-    : "text-gray-900 font-mono text-xs leading-relaxed";
+  const baseClass = "text-themed font-mono text-xs leading-relaxed";
 
   return (
     <code className={baseClass}>
@@ -165,9 +162,7 @@ export function SqlHighlighter({ sql = "", theme = "dark" }) {
         }
         const spanClass = tok.cls
           ? `${tok.cls} font-medium`
-          : isDark
-          ? "text-[#E6EDF3]"
-          : "text-gray-900";
+          : "text-themed";
         return (
           <span key={i} className={spanClass}>
             {tok.text}
@@ -179,7 +174,7 @@ export function SqlHighlighter({ sql = "", theme = "dark" }) {
 }
 
 /** Build a simple line-numbered code block */
-export function CodeBlock({ sql = "", theme = "dark" }) {
+export function CodeBlock({ sql = "" }) {
   const lines = sql.split("\n");
 
   return (
@@ -187,10 +182,7 @@ export function CodeBlock({ sql = "", theme = "dark" }) {
       className={`
         relative w-full overflow-x-auto rounded-lg p-4
         font-mono text-xs leading-relaxed whitespace-pre
-        ${theme === "dark"
-          ? "bg-bg-code border border-bg-border text-text-primary"
-          : "bg-gray-50 border border-gray-200 text-gray-900"
-        }
+        surface-code border border-themed text-themed
       `}
     >
       {/* Line numbers */}
@@ -200,9 +192,9 @@ export function CodeBlock({ sql = "", theme = "dark" }) {
           absolute left-0 top-0 bottom-0 w-10
           flex flex-col items-end pr-3 pt-4 pb-4
           select-none text-right
-          ${theme === "dark" ? "text-text-muted" : "text-gray-400"}
+          text-muted-themed
           font-mono text-xs leading-relaxed
-          border-r ${theme === "dark" ? "border-bg-border" : "border-gray-200"}
+          border-r border-themed
         `}
       >
         {lines.map((_, i) => (
@@ -212,7 +204,7 @@ export function CodeBlock({ sql = "", theme = "dark" }) {
 
       {/* Code content with padding for line numbers */}
       <span className="pl-10 block">
-        <SqlHighlighter sql={sql} theme={theme} />
+        <SqlHighlighter sql={sql} />
       </span>
     </pre>
   );

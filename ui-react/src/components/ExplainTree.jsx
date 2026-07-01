@@ -232,19 +232,19 @@ function PlanSummary({ plan }) {
   const cacheHitPct = totalBuffers > 0 ? ((sharedHit / totalBuffers) * 100).toFixed(1) : null;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 rounded-lg bg-[#0D1117] border border-white/5 mb-3">
+    <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 rounded-lg surface-code border border-themed mb-3">
       <div className="flex items-center gap-1.5">
         <span className="text-[9px] font-semibold text-gray-500 uppercase">Cost</span>
-        <span className="text-[12px] font-bold font-mono text-white">{fmt(totalCost)}</span>
+        <span className="text-[12px] font-bold font-mono text-heading">{fmt(totalCost)}</span>
       </div>
-      <div className="w-px h-4 bg-white/10" />
+      <div className="w-px h-4 bg-gray-300 dark:bg-white/10" />
       <div className="flex items-center gap-1.5">
         <span className="text-[9px] font-semibold text-gray-500 uppercase">Rows</span>
-        <span className="text-[12px] font-bold font-mono text-white">{fmt(planRows)}</span>
+        <span className="text-[12px] font-bold font-mono text-heading">{fmt(planRows)}</span>
       </div>
       {totalTime !== undefined && totalTime !== null && (
         <>
-          <div className="w-px h-4 bg-white/10" />
+          <div className="w-px h-4 bg-gray-300 dark:bg-white/10" />
           <div className="flex items-center gap-1.5">
             <span className="text-[9px] font-semibold text-gray-500 uppercase">Time</span>
             <span className="text-[12px] font-bold font-mono text-green-400">{fmtMs(totalTime)}</span>
@@ -253,7 +253,7 @@ function PlanSummary({ plan }) {
       )}
       {totalBuffers > 0 && (
         <>
-          <div className="w-px h-4 bg-white/10" />
+          <div className="w-px h-4 bg-gray-300 dark:bg-white/10" />
           <div className="flex items-center gap-1.5">
             <span className="text-[9px] font-semibold text-gray-500 uppercase">Buffers</span>
             <span className="text-[10px] font-mono">

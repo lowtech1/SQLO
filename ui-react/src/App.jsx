@@ -164,7 +164,7 @@ function SchemaTableRow({ table }) {
         onClick={() => setExpanded((v) => !v)}
         className="
           w-full flex items-center gap-2 px-2.5 py-2 rounded-lg
-          bg-[#161B22] hover:bg-[#1E242C]
+          surface-elevated surface-hover
           transition-colors duration-150 group
         "
       >
@@ -178,23 +178,23 @@ function SchemaTableRow({ table }) {
           <line x1="6" y1="2" x2="6" y2="14" />
         </svg>
 
-        <span className="text-[12px] font-semibold font-mono text-[#E6EDF3]">{table.name}</span>
+        <span className="text-[12px] font-semibold font-mono text-themed">{table.name}</span>
 
-        <span className="ml-auto text-[9px] font-mono text-[#484F58] mr-1">
+        <span className="ml-auto text-[9px] font-mono text-muted-themed mr-1">
           {table.columns.length} cols
         </span>
 
         {/* Chevron */}
         {expanded ? (
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none"
-            stroke="#484F58" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            className="shrink-0">
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className="shrink-0 text-muted-themed">
             <polyline points="4,10 8,6 12,10" />
           </svg>
         ) : (
           <svg width="11" height="11" viewBox="0 0 16 16" fill="none"
-            stroke="#484F58" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            className="shrink-0">
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className="shrink-0 text-muted-themed">
             <polyline points="4,6 8,10 12,6" />
           </svg>
         )}
@@ -202,14 +202,14 @@ function SchemaTableRow({ table }) {
 
       {/* Column list — dark panel */}
       {expanded && (
-        <div className="rounded-lg bg-[#0D1117] border border-[#30363D] overflow-hidden mt-0.5">
+        <div className="rounded-lg surface-code border border-subtle overflow-hidden mt-0.5">
           {table.columns.map((col, i) => (
             <div
               key={col.name}
               className={`
                 flex items-center gap-2.5 px-3 py-1.5
-                hover:bg-[#1E242C] transition-colors duration-100
-                ${i < table.columns.length - 1 ? "border-b border-[#21262D]" : ""}
+                surface-hover transition-colors duration-100
+                ${i < table.columns.length - 1 ? "border-b border-muted" : ""}
               `}
             >
               {/* PK / FK indicator */}
@@ -226,12 +226,12 @@ function SchemaTableRow({ table }) {
               )}
 
               {/* Column name */}
-              <span className="text-[11px] font-mono text-[#E6EDF3] w-28 shrink-0">
+              <span className="text-[11px] font-mono text-themed w-28 shrink-0">
                 {col.name}
               </span>
 
               {/* Data type — readable muted color */}
-              <span className="ml-auto text-[10px] font-mono text-[#60A5FA] shrink-0">
+              <span className="ml-auto text-[10px] font-mono text-blue-500 dark:text-[#60A5FA] shrink-0">
                 {col.dataType}
               </span>
             </div>
@@ -314,8 +314,8 @@ function DatabaseSchemaPanel() {
         ">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"
             className="shrink-0">
-            <path d="M8.22 1.75a.75.75 0 0 0-1.5 0v5.69L4.53 9.96a.75.75 0 1 0 1.06 1.06l2.8-2.8V12a.75.75 0 0 0 1.5 0V7.41l2.8 2.8a.75.75 0 0 0 1.06-1.06l-2.69-2.52V1.75z"/>
-            <path d="M8 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+            <path d="M8.22 1.75a.75.75 0 0 0-1.5 0v5.69L4.53 9.96a.75.75 0 1 0 1.06 1.06l2.8-2.8V12a.75.75 0 0 0 1.5 0V7.41l2.8 2.8a.75.75 0 0 0 1.06-1.06l-2.69-2.52V1.75z" />
+            <path d="M8 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
           </svg>
           <span className="text-[11px] font-semibold">
             {dbError ? `Connection failed: ${dbError}` : "No active connection — connect before optimizing"}
@@ -458,7 +458,7 @@ function DatabaseSchemaPanel() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full dark:bg-green-400 bg-green-500 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 dark:bg-green-400 bg-green-500" />
           </span>
-          <span className="text-[12px] font-semibold font-mono dark:text-[#E6EDF3] text-gray-200">
+          <span className="text-[12px] font-semibold font-mono text-themed">
             {schema?.db_name || "postgres"}
           </span>
         </div>
@@ -469,7 +469,7 @@ function DatabaseSchemaPanel() {
           title="Disconnect"
           className="
             p-1.5 rounded-md
-            dark:text-[#484F58] dark:hover:text-red-400 dark:hover:bg-red-400/10
+            dark:text-gray-500 dark:hover:text-red-400 dark:hover:bg-red-400/10
             text-gray-500 hover:text-red-500 hover:bg-red-500/10
             transition-all duration-150
           "
@@ -485,10 +485,10 @@ function DatabaseSchemaPanel() {
 
       {/* Table count */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-[10px] font-semibold dark:text-[#484F58] text-gray-500 uppercase tracking-wider">
+        <span className="text-[10px] font-semibold dark:text-gray-500 text-gray-500 uppercase tracking-wider">
           Tables
         </span>
-        <span className="text-[9px] font-mono dark:text-[#484F58] text-gray-500">
+        <span className="text-[9px] font-mono dark:text-gray-500 text-gray-500">
           {liveTables.length}
         </span>
       </div>
@@ -532,12 +532,12 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
   return (
     <aside className="
       flex-1 min-h-0 flex flex-col
-      bg-[#0B0F19]
-      border-r border-white/5
+      surface-primary
+      border-r border-themed
     ">
 
       {/* Tab Switcher */}
-      <div className="flex border-b border-white/5">
+      <div className="flex border-b border-themed">
         {[
           { key: "rules", label: "Optimization Rules" },
           { key: "schema", label: "Database Schema" },
@@ -549,8 +549,8 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
               flex-1 px-4 py-3 text-[11px] font-semibold
               border-b-2 transition-all duration-150
               ${leftTab === tab.key
-                ? "text-purple-400 border-purple-400/50 hover:text-purple-300"
-                : "text-gray-500 border-transparent hover:text-gray-300 hover:bg-white/5"
+                ? "dark:text-purple-400 text-purple-600 border-purple-400/50 dark:hover:text-purple-300 hover:text-purple-700"
+                : "dark:text-gray-500 text-gray-400 border-transparent dark:hover:text-gray-300 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-white/5"
               }
             `}
           >
@@ -560,9 +560,9 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
       </div>
 
       {/* SQL Input — flex-1 to absorb freed vertical space */}
-      <div className="flex-1 min-h-0 flex flex-col px-4 pt-4 pb-3 gap-3">
+      <div className="flex-1 min-h-0 flex flex-col px-4 pt-4 pb-3 gap-3 surface-primary">
         <div className="flex items-center justify-between shrink-0">
-          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+          <h3 className="text-[11px] font-semibold text-muted-themed uppercase tracking-widest">
             Raw SQL
           </h3>
           <DatabaseStatusBadge />
@@ -575,9 +575,9 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
           spellCheck={false}
           className="
             flex-1 w-full p-3 rounded-xl min-h-0
-            bg-[#0D1117] border border-white/5
-            text-[12px] font-mono text-gray-200
-            placeholder:text-gray-600 placeholder:text-[11px]
+            surface-code border border-themed
+            text-[12px] font-mono text-themed
+            dark:placeholder:text-gray-600 placeholder:text-gray-400 placeholder:text-[11px]
             focus:outline-none focus:border-purple-500/30 focus:ring-1 focus:ring-purple-500/20
             resize-none transition-all duration-200
           "
@@ -595,8 +595,8 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
             ${isAnalyzing
               ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
               : isConnected
-              ? "bg-purple-500 hover:bg-purple-400 text-white shadow-lg shadow-purple-500/20 active:scale-[0.98]"
-              : "bg-purple-500/20 text-gray-500 border border-purple-500/10 cursor-not-allowed"
+                ? "bg-purple-500 hover:bg-purple-400 text-white shadow-lg shadow-purple-500/20 active:scale-[0.98]"
+                : "bg-purple-500/20 text-gray-500 border border-purple-500/10 cursor-not-allowed"
             }
           `}
         >
@@ -614,7 +614,7 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
       {leftTab === "rules" && (
         <div className="shrink-0 px-4 pb-4 max-h-[220px] overflow-y-auto">
           <div className="flex items-center justify-between mb-3 mt-1">
-            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+            <span className="text-[11px] font-semibold text-muted-themed uppercase tracking-widest">
               Active Rules
             </span>
             <span className="badge-green px-2 py-0.5 rounded-md text-[10px] font-bold">
@@ -630,8 +630,8 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
                   flex items-center gap-2 px-2 py-1.5 rounded-lg
                   cursor-pointer transition-all duration-150 group
                   ${activeRules[idx]
-                    ? "bg-[#111827] border border-green-500/20 hover:border-green-500/40"
-                    : "bg-[#0D1117] border border-white/5 hover:border-white/10"
+                    ? "surface-card border border-green-500/20 hover:border-green-500/40"
+                    : "surface-code border border-themed hover:border-gray-400 dark:hover:border-white/10"
                   }
                 `}
               >
@@ -646,13 +646,13 @@ function LeftSidebar({ sql, onSqlChange, onAnalyze, isAnalyzing, activeRules, on
                   transition-all duration-150
                   ${activeRules[idx]
                     ? "bg-green-500 border border-green-500"
-                    : "border-2 border-gray-600 group-hover:border-gray-400"
+                    : "border-2 dark:border-gray-600 border-gray-300 group-hover:border-gray-400"
                   }
                 `}>
                   {activeRules[idx] && <Check size={8} className="text-white" />}
                 </div>
 
-                <span className="flex-1 min-w-0 text-[10px] font-semibold text-gray-200 leading-tight truncate">
+                <span className="flex-1 min-w-0 text-[10px] font-semibold text-themed leading-tight truncate">
                   {rule.name}
                 </span>
 
@@ -734,11 +734,11 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
   return (
     <section className="
       flex-1 flex flex-col min-h-0
-      bg-[#0B0F19]
-      border-x border-white/5
+      surface-primary
+      border-x border-themed
     ">
       {/* Header */}
-      <div className="flex-shrink-0 px-6 py-5 border-b border-white/5">
+      <div className="flex-shrink-0 px-6 py-5 border-b border-themed">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="
@@ -748,10 +748,10 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
               <Sparkles size={18} className="text-purple-400" />
             </div>
             <div>
-              <h2 className="text-[14px] font-semibold text-gray-100 leading-tight">
+              <h2 className="text-[14px] font-semibold text-heading leading-tight">
                 LLM Reasoning &amp; Recommendations
               </h2>
-              <p className="text-[11px] text-gray-500 mt-0.5">
+              <p className="text-[11px] text-muted-themed mt-0.5">
                 AI-powered SQL optimization analysis
               </p>
             </div>
@@ -769,7 +769,7 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
         {/* Overall analysis */}
         {data?.rule_recommendations?.overall_analysis && (
           <blockquote className="
-            text-[12px] text-gray-400 leading-relaxed
+            text-[12px] text-secondary leading-relaxed
             border-l-2 border-purple-500/40 pl-3 mb-4 italic
           ">
             {data.rule_recommendations.overall_analysis}
@@ -787,7 +787,7 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
           ].map((s) => (
             <span key={s.label} className={`
               inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg
-              text-[11px] font-medium bg-[#111827] border border-white/5 ${s.cls}
+              text-[11px] font-medium surface-card border border-themed ${s.cls}
             `}>
               {s.label}
               <span className="font-semibold">{s.value}</span>
@@ -797,8 +797,8 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
 
         {/* Filter bar */}
         {ruleKeys.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-white/5 flex-wrap">
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mr-1">
+          <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-themed flex-wrap">
+            <span className="text-[10px] text-muted-themed font-medium uppercase tracking-wider mr-1">
               Filter:
             </span>
             {["All", ...ruleKeys.map((r) => RULE_DISPLAY_NAMES[r] || r)].map((label, idx) => {
@@ -812,8 +812,8 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
                     px-2.5 py-1 rounded-full text-[10px] font-medium
                     transition-all duration-150
                     ${active
-                      ? "bg-purple-500/15 text-purple-300 border border-purple-500/30"
-                      : "text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent"
+                      ? "bg-purple-500/15 dark:text-purple-300 text-purple-700 border border-purple-500/30"
+                      : "dark:text-gray-500 text-gray-400 dark:hover:text-gray-300 hover:text-gray-700 dark:hover:bg-white/5 hover:bg-gray-100 border border-transparent"
                     }
                   `}
                 >
@@ -841,9 +841,9 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
               <div className="text-[11px] text-red-300/70 break-words">
                 {typeof error === 'string' ? error
                   : error?.message ? error.message
-                  : Array.isArray(error) ? error.map(e => typeof e === 'string' ? e : e?.msg || JSON.stringify(e)).join('; ')
-                  : error?.detail ? (typeof error.detail === 'string' ? error.detail : Array.isArray(error.detail) ? error.detail.map(e => e?.msg || JSON.stringify(e)).join('; ') : error.detail?.msg || JSON.stringify(error.detail))
-                  : JSON.stringify(error)}
+                    : Array.isArray(error) ? error.map(e => typeof e === 'string' ? e : e?.msg || JSON.stringify(e)).join('; ')
+                      : error?.detail ? (typeof error.detail === 'string' ? error.detail : Array.isArray(error.detail) ? error.detail.map(e => e?.msg || JSON.stringify(e)).join('; ') : error.detail?.msg || JSON.stringify(error.detail))
+                        : JSON.stringify(error)}
               </div>
             </div>
             {onRetry && (
@@ -860,21 +860,21 @@ function CenterColumn({ data, isAnalyzing, error, decisions, onApprove, onReject
       <main className="flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-24">
         {isAnalyzing ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <Loader size={32} className="text-purple-400 animate-spin" />
-            <p className="text-gray-400 text-sm">Analyzing and optimizing SQL...</p>
-            <p className="text-gray-600 text-[11px]">
+            <Loader size={32} className="text-purple-500 animate-spin" />
+            <p className="text-secondary text-sm">Analyzing and optimizing SQL...</p>
+            <p className="text-muted-themed text-[11px]">
               Using LLM to analyze query structure and recommend optimization rules.
             </p>
           </div>
         ) : candidates.length === 0 && allCandidates.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#111827] border border-white/5 flex items-center justify-center mb-4">
-              <Sparkles size={26} className="text-gray-600" />
+             <div className="w-14 h-14 rounded-2xl surface-card border border-themed flex items-center justify-center mb-4">
+              <Sparkles size={26} className="text-muted-themed" />
             </div>
-            <h3 className="text-gray-300 font-semibold text-[14px] mb-2">
-              No recommendations yet
+            <h3 className="text-heading font-semibold text-[14px] mb-2">
+              <span>No recommendations yet</span>
             </h3>
-            <p className="text-gray-600 text-[12px] max-w-xs leading-relaxed">
+             <p className="text-muted-themed text-[12px] max-w-xs leading-relaxed">
               Enter a SQL query and click Analyze Query to receive optimization recommendations.
             </p>
           </div>
@@ -936,7 +936,7 @@ function TopHeader({ onExport }) {
   return (
     <header className="
       h-[52px] shrink-0 flex items-center justify-between px-5
-      bg-[#0B0F19] border-b border-white/5
+      surface-primary border-b border-themed
     ">
       {/* Left group */}
       <div className="flex items-center gap-3">
@@ -948,10 +948,10 @@ function TopHeader({ onExport }) {
           <Zap size={16} className="text-purple-400" />
         </div>
         <div className="flex items-center gap-2">
-          <h1 className="text-[13px] font-semibold text-gray-100 leading-tight">
+          <h1 className="text-[13px] font-semibold text-heading leading-tight">
             AI Database Decision Support
           </h1>
-          <span className="text-[10px] text-gray-600 hidden sm:inline">
+          <span className="text-[10px] text-muted-themed hidden sm:inline">
             LLM-R2 Enhanced
           </span>
         </div>
@@ -972,8 +972,8 @@ function TopHeader({ onExport }) {
           className="
             flex items-center gap-2 px-3 py-1.5 rounded-lg
             text-[12px] font-medium shrink-0
-            bg-[#111827] border border-white/10
-            text-gray-300 hover:text-white hover:bg-[#1a2234] hover:border-white/20
+            surface-card border border-themed
+            dark:text-gray-300 text-gray-600 dark:hover:text-white hover:text-gray-900 surface-hover
             transition-all duration-150
           "
         >
@@ -1060,7 +1060,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden dark:bg-bg-primary bg-white">
+    <div className="flex flex-col h-screen w-full overflow-hidden surface-primary theme-transition">
       {/* ── Header: fixed height, never grows or shrinks ── */}
       <TopHeader onExport={openExportModal} />
 

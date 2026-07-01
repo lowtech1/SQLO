@@ -6,6 +6,24 @@
 @layer base {
   :root {
     color-scheme: dark;
+
+    /* ── Dark theme tokens (default) ─────────────────────────────────── */
+    --color-surface-primary:    #0B0F19;
+    --color-surface-card:       #111827;
+    --color-surface-code:       #0D1117;
+    --color-surface-elevated:   #161B22;
+    --color-surface-hover:      #1E242C;
+    --color-surface-tab:        #21262D;
+    --color-border-default:     rgba(255, 255, 255, 0.05);
+    --color-border-subtle:      #30363D;
+    --color-border-muted:       #21262D;
+    --color-text-primary:       #E6EDF3;
+    --color-text-secondary:     #8B949E;
+    --color-text-muted:         #484F58;
+    --color-text-heading:       #E6EDF3;
+    --color-bar-bg:             #1F2937;
+    --color-scrollbar:          #1F2937;
+    --color-scrollbar-hover:    #374151;
   }
 
   html.dark {
@@ -14,87 +32,101 @@
 
   html:not(.dark) {
     color-scheme: light;
+
+    /* ── Light theme token overrides ──────────────────────────────────── */
+    --color-surface-primary:    #F8F9FB;
+    --color-surface-card:       #FFFFFF;
+    --color-surface-code:       #F6F8FA;
+    --color-surface-elevated:   #FFFFFF;
+    --color-surface-hover:      #F0F2F5;
+    --color-surface-tab:        #EBEEF2;
+    --color-border-default:     #D0D7DE;
+    --color-border-subtle:      #D0D7DE;
+    --color-border-muted:       #E5E7EB;
+    --color-text-primary:       #1F2328;
+    --color-text-secondary:     #656D76;
+    --color-text-muted:         #8C959F;
+    --color-text-heading:       #1F2328;
+    --color-bar-bg:             #E5E7EB;
+    --color-scrollbar:          #D0D7DE;
+    --color-scrollbar-hover:    #8C959F;
   }
 
   body {
-    background-color: #030712;
-    color: #E6EDF3;
+    background-color: var(--color-surface-primary);
+    color: var(--color-text-primary);
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  html:not(.dark) body {
-    background-color: #FFFFFF;
-    color: #1F2328;
-  }
-
-  /* ── Premium scrollbar: thin, dark, stable gutter ────────────────────── */
+  /* ── Scrollbar ────────────────────────────────────────────────────── */
   * {
     scrollbar-width: thin;
     scrollbar-gutter: stable;
-  }
-
-  /* Dark mode scrollbar */
-  html.dark * {
-    scrollbar-color: #1F2937 transparent;
+    scrollbar-color: var(--color-scrollbar) transparent;
   }
 
   ::-webkit-scrollbar {
     width: 5px;
     height: 5px;
   }
-
-  html.dark ::-webkit-scrollbar-track {
+  ::-webkit-scrollbar-track {
     background: transparent;
   }
-  html.dark ::-webkit-scrollbar-thumb {
-    background: #1F2937;
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-scrollbar);
     border-radius: 3px;
   }
-  html.dark ::-webkit-scrollbar-thumb:hover {
-    background: #374151;
-  }
-
-  /* Light mode scrollbar */
-  html:not(.dark) * {
-    scrollbar-color: #D0D7DE transparent;
-  }
-  html:not(.dark) ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  html:not(.dark) ::-webkit-scrollbar-thumb {
-    background: #D0D7DE;
-    border-radius: 3px;
-  }
-  html:not(.dark) ::-webkit-scrollbar-thumb:hover {
-    background: #8C959F;
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-scrollbar-hover);
   }
 }
 
 @layer components {
+  /* ── Themed surface utilities (use CSS vars) ────────────────────────── */
+  .surface-primary   { background-color: var(--color-surface-primary); }
+  .surface-card      { background-color: var(--color-surface-card); }
+  .surface-code      { background-color: var(--color-surface-code); }
+  .surface-elevated  { background-color: var(--color-surface-elevated); }
+  .surface-hover:hover { background-color: var(--color-surface-hover); }
+  .surface-tab       { background-color: var(--color-surface-tab); }
+
+  .border-themed     { border-color: var(--color-border-default); }
+  .border-subtle     { border-color: var(--color-border-subtle); }
+  .border-muted      { border-color: var(--color-border-muted); }
+
+  .text-themed       { color: var(--color-text-primary); }
+  .text-secondary    { color: var(--color-text-secondary); }
+  .text-muted-themed { color: var(--color-text-muted); }
+  .text-heading      { color: var(--color-text-heading); }
+
+  .bar-bg            { background-color: var(--color-bar-bg); }
+
   /* ── Premium card: elevated surface with soft shadow ──────────────── */
   .premium-card {
-    background: #111827;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border-default);
     border-radius: 0.75rem;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), 0 1px 4px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
   }
 
   /* ── Premium panel: slightly elevated, subtle border ─────────────────── */
   .premium-panel {
-    background: #0B0F19;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-surface-primary);
+    border: 1px solid var(--color-border-default);
     border-radius: 0.75rem;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
   }
 
   /* ── Ultra-subtle divider ─────────────────────────────────────── */
   .premium-divider {
-    border-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--color-border-default);
   }
 
-  /* ── Glowing badge variants — subtle opacity backgrounds ────────────── */
+  /* ── Glowing badge variants — work in both themes ────────────────── */
   .badge-purple {
     background: rgba(139, 92, 246, 0.08);
     color: #a78bfa;
@@ -120,6 +152,13 @@
     color: #60a5fa;
     border: 1px solid rgba(59, 130, 246, 0.15);
   }
+
+  /* Light mode badge overrides — stronger contrast on white bg */
+  html:not(.dark) .badge-purple { background: rgba(139, 92, 246, 0.1);  color: #7C3AED; border-color: rgba(139, 92, 246, 0.25); }
+  html:not(.dark) .badge-green  { background: rgba(34, 197, 94, 0.1);   color: #16A34A; border-color: rgba(34, 197, 94, 0.25); }
+  html:not(.dark) .badge-red    { background: rgba(239, 68, 68, 0.1);   color: #DC2626; border-color: rgba(239, 68, 68, 0.25); }
+  html:not(.dark) .badge-yellow { background: rgba(234, 179, 8, 0.1);   color: #B45309; border-color: rgba(234, 179, 8, 0.25); }
+  html:not(.dark) .badge-blue   { background: rgba(59, 130, 246, 0.1);  color: #2563EB; border-color: rgba(59, 130, 246, 0.25); }
 
   /* ── SQL syntax tokens ─────────────────────────────────────────────── */
   .sql-keyword  { color: #F97316; font-weight: 600; }
@@ -173,5 +212,11 @@
   width: 2rem;
   text-align: right;
   margin-right: 0.75rem;
-  color: #374151;
+  color: var(--color-text-muted);
+}
+
+/* ── Smooth theme transition on all themed elements ──────────────────── */
+.theme-transition,
+.theme-transition * {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
 }

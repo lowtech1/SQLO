@@ -5,10 +5,10 @@
  * States: PENDING | APPROVED | REJECTED
  *
  * Design:
- *  - bg-[#111827] card with border-white/5, rounded-xl
+ *  - surface-card card with border-themed, rounded-xl
  *  - Subtle glow border on approved (green-500/30)
  *  - Dimmed/grayscale on rejected
- *  - Grid code comparison with bg-[#0D1117] code panels
+ *  - Grid code comparison with surface-code code panels
  */
 
 import { useState } from "react";
@@ -48,8 +48,8 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
   const cardBorder = isApproved
     ? "border-green-500/30 shadow-lg shadow-green-500/5"
     : isRejected
-    ? "border-red-500/15 opacity-50"
-    : "border-white/5";
+      ? "border-red-500/15 opacity-50"
+      : "border-themed";
 
   const cardBg = isRejected ? "opacity-50" : "";
 
@@ -66,10 +66,10 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
   const conf = candidate.confidence ?? "Medium";
   const confCls =
     conf === "High"
-    ? "badge-green"
-    : conf === "Low"
-    ? "badge-red"
-    : "badge-yellow";
+      ? "badge-green"
+      : conf === "Low"
+        ? "badge-red"
+        : "badge-yellow";
 
   const improvementPct = candidate.plan_comparison?.comparison?.cost_improvement_pct ?? 0;
   const hasImprovement = improvementPct > 0; // positive = opt is better (improved)
@@ -78,7 +78,7 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
     <article
       className={`
         rounded-xl p-5 mb-4
-        bg-[#111827] border ${cardBorder} ${cardBg}
+        surface-card border ${cardBorder} ${cardBg}
         transition-all duration-300
         shadow-lg shadow-black/20
       `}
@@ -103,7 +103,7 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
               </span>
             ))
           ) : (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider text-gray-500 bg-white/5 border border-white/5 shrink-0">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider text-muted-themed dark:bg-white/5 bg-gray-100 border border-themed shrink-0">
               ORIGINAL QUERY
             </span>
           )}
@@ -139,8 +139,8 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
           ${isApproved
             ? "border-green-500/50 bg-green-500/[0.03]"
             : isRejected
-            ? "border-red-500/50 bg-red-500/[0.03]"
-            : "border-purple-500/40 bg-purple-500/[0.03]"
+              ? "border-red-500/50 bg-red-500/[0.03]"
+              : "border-purple-500/40 bg-purple-500/[0.03]"
           }
         `}
       >
@@ -164,7 +164,7 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
             className="
               w-full flex items-center justify-between
               px-3 py-2.5 rounded-xl
-              bg-[#0D1117] border border-white/5
+              surface-code border border-themed
               text-[11px] font-medium text-gray-400
               hover:text-gray-200 hover:border-white/10
               transition-all duration-200
@@ -195,8 +195,8 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
           <div className="flex flex-col 2xl:flex-row items-stretch gap-4 w-full">
 
             {/* BEFORE */}
-            <div className="flex-1 min-w-0 w-full rounded-xl overflow-hidden border border-white/5 flex flex-col">
-              <div className="flex items-center justify-between px-3 py-1.5 shrink-0 bg-[#0D1117]">
+            <div className="flex-1 min-w-0 w-full rounded-xl overflow-hidden border border-themed flex flex-col">
+              <div className="flex items-center justify-between px-3 py-1.5 shrink-0 surface-code">
                 <span className="text-[9px] font-mono text-gray-500">original.sql</span>
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded badge-red">
                   BEFORE
@@ -222,11 +222,11 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
             {/* AFTER */}
             <div className={`
               flex-1 min-w-0 w-full rounded-xl overflow-hidden border flex flex-col
-              ${isApproved ? "border-green-500/30" : "border-white/5"}
+              ${isApproved ? "border-green-500/30" : "border-themed"}
             `}>
               <div className={`
-                flex items-center justify-between px-3 py-1.5 shrink-0 bg-[#0D1117]
-                ${isApproved ? "border-b border-green-500/30" : "border-b border-white/5"}
+                flex items-center justify-between px-3 py-1.5 shrink-0 surface-code
+                ${isApproved ? "border-b border-green-500/30" : "border-b border-themed"}
               `}>
                 <span className="text-[9px] font-mono text-gray-500">optimized.sql</span>
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded badge-green flex items-center gap-1">
@@ -245,8 +245,8 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
       {/* ── Original query single block ──────────────────────────── */}
       {isOriginal && (
         <div className="mb-4">
-          <div className="rounded-xl overflow-hidden border border-white/5 flex flex-col">
-            <div className="flex items-center justify-between px-3 py-1.5 shrink-0 bg-[#0D1117]">
+          <div className="rounded-xl overflow-hidden border border-themed flex flex-col">
+            <div className="flex items-center justify-between px-3 py-1.5 shrink-0 surface-code">
               <span className="text-[9px] font-mono text-gray-500">original.sql</span>
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded badge-red">BEFORE</span>
             </div>
@@ -259,13 +259,13 @@ export function DecisionCard({ candidate, originalSql, onApprove, onReject, inde
 
       {/* ── Footer Actions ─────────────────────────────────────────── */}
       {isOriginal ? (
-        <div className="flex items-end justify-end pt-3 border-t border-white/5">
+        <div className="flex items-end justify-end pt-3 border-t border-themed">
           <span className="text-[11px] text-gray-600 italic">
             Baseline query — no actions available
           </span>
         </div>
       ) : (
-        <div className="flex items-center justify-between pt-3 border-t border-white/5">
+        <div className="flex items-center justify-between pt-3 border-t border-themed">
           <div className="flex items-center gap-2">
             {isApproved && (
               <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg badge-green">

@@ -21,7 +21,7 @@ function getInitialTheme() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
-  } catch (_) {}
+  } catch (_) { }
   return "dark"; // default dark
 }
 
@@ -80,7 +80,7 @@ export function ThemeToggle() {
     applyTheme(theme);
     try {
       localStorage.setItem(STORAGE_KEY, theme);
-    } catch (_) {}
+    } catch (_) { }
   }, [theme]);
 
   const toggle = () => {
@@ -93,9 +93,10 @@ export function ThemeToggle() {
       title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
       className="
         relative w-8 h-8 rounded-lg flex items-center justify-center
-        bg-[#111827] border border-white/10
-        text-gray-400 hover:text-gray-100
-        hover:bg-[#1a2234] hover:border-white/20
+        surface-card border border-themed
+        dark:text-gray-400 dark:hover:text-gray-100
+        text-gray-500 hover:text-gray-800
+        surface-hover
         transition-all duration-200
         focus:outline-none focus:ring-2 focus:ring-purple-500/30
       "

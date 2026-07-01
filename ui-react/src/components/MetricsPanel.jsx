@@ -19,7 +19,7 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
   const optW = max > 0 ? Math.max(4, ((opt || 0) / max) * 100) : 50;
 
   return (
-    <div className="rounded-xl p-4 bg-[#111827] border border-white/5">
+    <div className="rounded-xl p-4 surface-card border border-themed">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-tight">
           {label}
@@ -33,11 +33,10 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
         {/* Original bar */}
         <div className="flex items-center gap-2">
           <span className="text-[8px] text-gray-600 w-6 text-right shrink-0 font-medium">Orig</span>
-          <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
+          <div className="flex-1 h-3.5 surface-tab rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full flex items-center justify-end pr-1.5 transition-all duration-700 ${
-                improved ? "bg-green-500/30" : "bg-red-500/30"
-              }`}
+              className={`h-full rounded-full flex items-center justify-end pr-1.5 transition-all duration-700 ${improved ? "bg-green-500/30" : "bg-red-500/30"
+                }`}
               style={{ width: `${origW}%` }}
             >
               {origW > 22 && (
@@ -52,17 +51,15 @@ function MetricCell({ label, orig, opt, unit = "", imp = "—", improved = true 
         {/* Optimized bar */}
         <div className="flex items-center gap-2">
           <span className="text-[8px] w-6 text-right shrink-0 font-medium">Opt</span>
-          <div className="flex-1 h-3.5 bg-[#1F2937] rounded-full overflow-hidden">
+          <div className="flex-1 h-3.5 surface-tab rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full flex items-center justify-end pr-1.5 transition-all duration-700 ${
-                improved ? "bg-green-500/50" : "bg-red-500/50"
-              }`}
+              className={`h-full rounded-full flex items-center justify-end pr-1.5 transition-all duration-700 ${improved ? "bg-green-500/50" : "bg-red-500/50"
+                }`}
               style={{ width: `${optW}%` }}
             >
               {optW > 22 && (
-                <span className={`text-[8px] font-mono font-bold leading-none ${
-                  improved ? "text-green-400/80" : "text-red-400/80"
-                }`}>
+                <span className={`text-[8px] font-mono font-bold leading-none ${improved ? "text-green-400/80" : "text-red-400/80"
+                  }`}>
                   {opt}{unit}
                 </span>
               )}
@@ -115,10 +112,10 @@ export function MetricsPanel({ data, decisions }) {
   const totalCostImp = comp?.cost_improvement_pct ?? 0;
 
   return (
-    <aside className="flex-1 min-h-0 flex flex-col bg-[#0B0F19] border-l border-white/5">
+    <aside className="flex-1 min-h-0 flex flex-col surface-primary border-l border-themed">
 
       {/* ── Optimized SQL Panel ───────────────────────────────── */}
-      <div className="px-4 pt-5 pb-4 border-b border-white/5">
+      <div className="px-4 pt-5 pb-4 border-b border-themed">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none"
@@ -126,17 +123,17 @@ export function MetricsPanel({ data, decisions }) {
               <rect x="3" y="7.5" width="10" height="7" rx="1.5" />
               <path d="M5.5 7.5 V5 a2.5 2.5 0 0 1 5 0 V7.5" />
             </svg>
-            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+            <h3 className="text-[11px] font-semibold text-themed-secondary uppercase tracking-widest">
               Final Optimized SQL
             </h3>
           </div>
         </div>
 
         {/* SQL block */}
-        <div className="rounded-xl overflow-hidden border border-white/5 mb-3">
-          <div className="flex items-center justify-between px-3 py-2 bg-[#0D1117] border-b border-white/5">
-            <span className="text-[9px] font-mono text-gray-600">optimized.sql</span>
-            <span className="text-[9px] text-gray-600">Read-only</span>
+        <div className="rounded-xl overflow-hidden border border-themed mb-3">
+          <div className="flex items-center justify-between px-3 py-2 surface-code border-b border-themed">
+            <span className="text-[9px] font-mono text-themed-secondary">optimized.sql</span>
+            <span className="text-[9px] text-themed-secondary">Read-only</span>
           </div>
           <div className="max-h-[280px] overflow-y-auto">
             <SqlCodeBlock code={displaySql} />
@@ -152,8 +149,8 @@ export function MetricsPanel({ data, decisions }) {
               px-3 py-2.5 rounded-xl text-[12px] font-medium
               transition-all duration-200
               ${copied
-                ? "bg-green-500 text-white border border-green-500 shadow-lg shadow-green-500/20"
-                : "bg-[#111827] border border-white/10 text-gray-300 hover:bg-[#1a2234] hover:text-white hover:border-white/20"
+                ? "bg-green-500 text-white border border-green-500 shadow-lg"
+                : "surface-card border border-themed text-themed-primary hover:text-themed-active surface-hover hover:border-themed-active"
               }
             `}
           >
@@ -164,7 +161,7 @@ export function MetricsPanel({ data, decisions }) {
             flex-1 flex items-center justify-center gap-2
             px-3 py-2.5 rounded-xl text-[12px] font-medium
             bg-green-500 hover:bg-green-400 text-white
-            transition-all shadow-lg shadow-green-500/20
+            transition-all shadow-lg
           ">
             <Play size={13} />
             Execute
@@ -174,17 +171,17 @@ export function MetricsPanel({ data, decisions }) {
 
       {/* ── EXPLAIN Tree ─────────────────────────────────────── */}
       {data?.explain_plan && (
-        <div className="px-4 pt-4 pb-4 border-b border-white/5">
+        <div className="px-4 pt-4 pb-4 border-b border-themed">
           <div className="flex items-center gap-2 mb-3">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              stroke="currentColor" className="text-blue-500" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />
             </svg>
-            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+            <h3 className="text-[11px] font-semibold text-themed-secondary uppercase tracking-widest">
               Execution Plan
             </h3>
           </div>
-          <div className="rounded-xl overflow-hidden border border-white/5">
+          <div className="rounded-xl overflow-hidden border border-themed">
             <ExplainTree planData={data.explain_plan} />
           </div>
         </div>
@@ -240,7 +237,7 @@ export function MetricsPanel({ data, decisions }) {
             </div>
 
             {/* Summary bar */}
-            <div className="rounded-xl p-4 bg-[#111827] border border-white/5">
+            <div className="rounded-xl p-4 surface-card border border-themed">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">
                   Total Improvement
@@ -249,13 +246,13 @@ export function MetricsPanel({ data, decisions }) {
                   {fmt(totalCostImp)}
                 </span>
               </div>
-              <div className="h-2.5 bg-[#1F2937] rounded-full overflow-hidden">
+              <div className="h-2.5 surface-tab rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-700"
                   style={{
                     width: `${Math.min(100, Math.max(4,
                       ((rewMetrics?.total_cost ?? topMetrics?.total_cost ?? 0) /
-                       (origMetrics?.total_cost ?? topMetrics?.total_cost ?? 1)) * 100
+                        (origMetrics?.total_cost ?? topMetrics?.total_cost ?? 1)) * 100
                     ))}%`,
                     background: totalCostImp <= 0
                       ? "linear-gradient(to right, rgba(34,197,94,0.4), rgba(34,197,94,0.7))"
@@ -274,7 +271,7 @@ export function MetricsPanel({ data, decisions }) {
             </div>
 
             {/* Applied Rules */}
-            <div className="rounded-xl p-4 bg-[#111827] border border-white/5">
+            <div className="rounded-xl p-4 surface-card border border-themed">
               <div className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mb-3">
                 Applied Rules
               </div>

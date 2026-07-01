@@ -2,7 +2,7 @@
  * ExportReportModal.jsx
  * Optimization Report Preview modal.
  * Renders conditionally based on isExportModalOpen from Zustand store.
- * Dark/light mode dual classes throughout.
+ * Dark/light mode dual classes throughout using CSS variables.
  */
 
 import { useState } from "react";
@@ -25,17 +25,17 @@ function SummaryCard({ label, value, unit = "", highlight = false }) {
       rounded-xl p-4 text-center
       ${highlight
         ? "bg-green-500/5 border border-green-500/15"
-        : "bg-[#111827] border border-white/5"
+        : "surface-card border border-themed"
       }
     `}>
-      <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">
+      <div className="text-[10px] font-semibold text-muted-themed uppercase tracking-widest mb-1.5">
         {label}
       </div>
       <div className={`text-[22px] font-bold font-mono leading-none
-        ${highlight ? "text-green-400" : "text-gray-100"}
+        ${highlight ? "text-green-400" : "text-heading"}
       `}>
         {value}
-        {unit && <span className="text-[13px] font-normal text-gray-500 ml-0.5">{unit}</span>}
+        {unit && <span className="text-[13px] font-normal text-muted-themed ml-0.5">{unit}</span>}
       </div>
     </div>
   );
@@ -73,11 +73,11 @@ export function ExportReportModal({ data }) {
   const queryId = data?.query_id || "—";
   const date = data?.timestamp
     ? new Date(data.timestamp).toLocaleDateString("en-US", {
-        year: "numeric", month: "long", day: "numeric",
-      })
+      year: "numeric", month: "long", day: "numeric",
+    })
     : new Date().toLocaleDateString("en-US", {
-        year: "numeric", month: "long", day: "numeric",
-      });
+      year: "numeric", month: "long", day: "numeric",
+    });
 
   const handleDownload = () => {
     const sql = best?.sql || data?.recommendation?.best_sql || "";
@@ -116,8 +116,8 @@ export function ExportReportModal({ data }) {
 ## Applied Rules
 
 ${allRules
-  .map((r, i) => `${i + 1}. **${RULE_DISPLAY_NAMES[r] || r}**`)
-  .join("\n")}
+        .map((r, i) => `${i + 1}. **${RULE_DISPLAY_NAMES[r] || r}**`)
+        .join("\n")}
 
 ---
 
@@ -148,14 +148,14 @@ ${sql}
       <div className="
         relative w-full max-w-4xl max-h-[90vh] rounded-2xl
         flex flex-col
-        bg-[#0B0F19] border border-white/10
-        shadow-2xl shadow-black/60
+        surface-primary border border-themed
+        shadow-2xl dark:shadow-black/60 shadow-gray-400/30
         overflow-hidden
       ">
         {/* Header */}
         <div className="
           flex items-center justify-between px-6 py-4
-          border-b border-white/5 shrink-0
+          border-b border-themed shrink-0
         ">
           <div className="flex items-center gap-3">
             <div className="
@@ -165,18 +165,18 @@ ${sql}
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                 className="text-purple-400">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
               </svg>
             </div>
             <div>
-              <h2 className="text-[14px] font-semibold text-gray-100">
+              <h2 className="text-[14px] font-semibold text-heading">
                 Optimization Report
               </h2>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-muted-themed">
                 Review before downloading
               </p>
             </div>
@@ -185,7 +185,7 @@ ${sql}
             onClick={closeExportModal}
             className="
               w-8 h-8 rounded-lg flex items-center justify-center
-              text-gray-500 hover:text-gray-200 hover:bg-white/5
+              text-muted-themed dark:hover:text-gray-200 hover:text-gray-700 dark:hover:bg-white/5 hover:bg-gray-100
               transition-colors
             "
           >
@@ -200,25 +200,25 @@ ${sql}
           <div className="
             grid grid-cols-3 gap-3 mb-5
             px-4 py-3 rounded-xl
-            bg-[#111827] border border-white/5
+            surface-card border border-themed
           ">
             <div>
-              <div className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mb-0.5">
+              <div className="text-[9px] font-semibold text-muted-themed uppercase tracking-widest mb-0.5">
                 Query ID
               </div>
-              <div className="text-[11px] font-mono text-gray-300">{queryId}</div>
+              <div className="text-[11px] font-mono text-secondary">{queryId}</div>
             </div>
             <div>
-              <div className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mb-0.5">
+              <div className="text-[9px] font-semibold text-muted-themed uppercase tracking-widest mb-0.5">
                 Date
               </div>
-              <div className="text-[11px] text-gray-300">{date}</div>
+              <div className="text-[11px] text-secondary">{date}</div>
             </div>
             <div>
-              <div className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest mb-0.5">
+              <div className="text-[9px] font-semibold text-muted-themed uppercase tracking-widest mb-0.5">
                 Database
               </div>
-              <div className="text-[11px] text-gray-300">tpch · PostgreSQL</div>
+              <div className="text-[11px] text-secondary">tpch · PostgreSQL</div>
             </div>
           </div>
 
@@ -226,7 +226,7 @@ ${sql}
           <div className="mb-5">
             <div className="flex items-center gap-2 mb-3">
               <Zap size={13} className="text-purple-400" />
-              <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+              <h3 className="text-[11px] font-semibold text-muted-themed uppercase tracking-widest">
                 Analysis Summary
               </h3>
             </div>
@@ -251,7 +251,7 @@ ${sql}
           <div className="mb-5">
             <div className="flex items-center gap-2 mb-3">
               <Database size={13} className="text-purple-400" />
-              <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+              <h3 className="text-[11px] font-semibold text-muted-themed uppercase tracking-widest">
                 Rule Execution Trace
               </h3>
             </div>
@@ -275,12 +275,12 @@ ${sql}
                       {/* Content */}
                       <div className="
                         flex-1 rounded-xl p-3
-                        bg-[#111827] border border-white/5
+                        surface-card border border-themed
                       ">
                         <div className="text-[11px] font-semibold text-purple-300 mb-1">
                           {RULE_DISPLAY_NAMES[rule] || rule.replace(/_/g, " ")}
                         </div>
-                        <div className="text-[11px] text-gray-400 leading-relaxed">
+                        <div className="text-[11px] text-secondary leading-relaxed">
                           {rec?.reason || "Rule applied successfully."}
                         </div>
                         {rec?.reason && (
@@ -294,7 +294,7 @@ ${sql}
                   );
                 })
               ) : (
-                <p className="text-[12px] text-gray-600 italic py-3">
+                <p className="text-[12px] text-muted-themed italic py-3">
                   No rules applied.
                 </p>
               )}
@@ -309,13 +309,13 @@ ${sql}
                 <rect x="3" y="7.5" width="10" height="7" rx="1.5" />
                 <path d="M5.5 7.5 V5 a2.5 2.5 0 0 1 5 0 V7.5" />
               </svg>
-              <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+              <h3 className="text-[11px] font-semibold text-muted-themed uppercase tracking-widest">
                 Final Optimized SQL
               </h3>
             </div>
-            <div className="rounded-xl overflow-hidden border border-white/5">
-              <div className="px-4 py-2 bg-[#0D1117] border-b border-white/5">
-                <span className="text-[10px] font-mono text-gray-600">optimized.sql</span>
+            <div className="rounded-xl overflow-hidden border border-themed">
+              <div className="px-4 py-2 surface-code border-b border-themed">
+                <span className="text-[10px] font-mono text-muted-themed">optimized.sql</span>
               </div>
               <SqlCodeBlock
                 code={best?.sql || data?.recommendation?.best_sql || ""}
@@ -327,16 +327,16 @@ ${sql}
         {/* Footer */}
         <div className="
           flex items-center justify-end gap-3 px-6 py-4
-          border-t border-white/5 shrink-0 bg-[#0B0F19]
+          border-t border-themed shrink-0 surface-primary
         ">
-          <span className="text-[11px] text-gray-500">Format:</span>
+          <span className="text-[11px] text-muted-themed">Format:</span>
           <select
             value={format}
             onChange={(e) => setFormat(e.target.value)}
             className="
               px-3 py-1.5 rounded-lg text-[12px]
-              bg-[#111827] border border-white/10
-              text-gray-300 focus:outline-none focus:border-purple-500/30
+              surface-card border border-themed
+              text-themed focus:outline-none focus:border-purple-500/30
               cursor-pointer
             "
           >
